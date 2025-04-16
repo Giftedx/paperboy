@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Settings</h2>
+  <form method="post" class="card p-4 shadow-sm mb-4">
+    <h4>Configuration File <span class="badge bg-secondary">config.yaml</span></h4>
+    <div class="mb-3">
+      <label for="config_content" class="form-label">Main Settings</label>
+      <textarea name="config_content" id="config_content" class="form-control" rows="12" spellcheck="false">{{ config_content }}</textarea>
+      <div class="form-text">Edit your main system settings here. <strong>Tip:</strong> Only change what you understand. For help, see the <a href="https://github.com/yourproject/docs" target="_blank">documentation</a>.</div>
+    </div>
+    <h4>Environment File <span class="badge bg-info text-dark">.env</span></h4>
+    <div class="mb-3">
+      <label for="env_content" class="form-label">Secrets &amp; Credentials</label>
+      <textarea name="env_content" id="env_content" class="form-control" rows="4" spellcheck="false">{{ env_content }}</textarea>
+      <div class="form-text text-warning">Keep this information private. Never share your secrets or credentials.</div>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+  </form>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} mt-3" role="alert">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  <a href="/" class="btn btn-outline-secondary mt-4"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+</div>
+{% endblock %}

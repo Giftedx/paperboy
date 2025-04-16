@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">System Health</h2>
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Health Status</h5>
+          {% if not recent_errors or recent_errors|length == 0 %}
+            <div class="alert alert-success d-flex align-items-center" role="alert">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              <div>All systems healthy! No recent errors detected.</div>
+            </div>
+          {% else %}
+            <div class="alert alert-danger d-flex align-items-center" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <div>Some issues detected. See recent errors below.</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <form method="post" action="{{ url_for('test_alert') }}" class="mb-3">
+        <button type="submit" class="btn btn-warning btn-lg"><i class="bi bi-envelope"></i> Send Test Alert</button>
+      </form>
+      <a href="/" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Recent Errors</h5>
+          {% if recent_errors %}
+            <ul class="list-group list-group-flush">
+              {% for err in recent_errors %}
+                <li class="list-group-item text-danger small">{{ err }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-success">No recent errors 🎉</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

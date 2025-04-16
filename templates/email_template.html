@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>📰 Your Daily Newspaper for <span style="color:#0d6efd;">{{ date }}</span></h2>
+{% if recipient %}
+<p>Hello {{ recipient }},</p>
+{% endif %}
+<p>{{ archive_summary }}</p>
+<p>Here's a quick look at today's front page:</p>
+{% if thumbnail_cid %}
+<div style="text-align:center;margin-bottom:1em;">
+  <img src="cid:{{ thumbnail_cid }}" alt="Today's Front Page Thumbnail" width="320" style="border-radius:8px;box-shadow:0 2px 8px #bbb;">
+</div>
+{% endif %}
+<p style="text-align:center;margin-bottom:2em;">
+  <a href="{{ today_paper_url }}" style="font-size:1.2em;" class="btn btn-primary btn-lg">Read Today's Newspaper</a>
+</p>
+<hr>
+<h3 style="margin-top:2em;">Past 7 Days' Papers</h3>
+<ul style="list-style:none;padding-left:0;">
+  {% for day, link in past_papers %}
+  <li style="margin-bottom:0.5em;">
+    <a href="{{ link }}" style="text-decoration:none;">
+      <span class="badge bg-secondary" style="font-size:1em;{% if day == date %}background:#0d6efd;color:#fff;{% endif %}">
+        {{ day }}{% if day == date %} (Today){% endif %}
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+<p style="margin-top:2em;font-size:0.95em;color:#888;">This email was automatically generated. If you have any questions, just reply to this message.</p>
+{% endblock %}

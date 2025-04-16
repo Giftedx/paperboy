@@ -1,0 +1,44 @@
+# Example configuration for Newspaper Emailer System
+newspaper:
+  url: "https://example.com/login"
+  username: "your_username"
+  password: "your_password"
+  selectors:
+    download_link: "a[href$='.pdf'], a[href$='.html']"
+    username: "#username"
+    password: "#password"
+    submit: "#login-btn"
+  login_url: "https://example.com/login"
+  user_agent: "Mozilla/5.0"
+
+storage:
+  provider: "r2" # or "s3"
+  endpoint_url: "https://<your-r2-endpoint>"
+  access_key_id: "your-access-key-id"
+  secret_access_key: "your-secret-access-key"
+  region: "auto"
+  bucket: "newspaper-storage"
+
+general:
+  retention_days: 7
+  date_format: "%Y-%m-%d"
+
+email:
+  sender: "sender@example.com"
+  recipients:
+    - "recipient1@example.com"
+    - "recipient2@example.com"
+  subject_template: "Your Daily Newspaper - {{ date }}"
+  template: "email_template.html"
+  delivery_method: "smtp" # or "sendgrid"
+  smtp_host: "smtp.example.com"
+  smtp_port: 587
+  smtp_user: "smtp_user@example.com"
+  smtp_pass: "your-smtp-password"
+  smtp_tls: 1
+  sendgrid_api_key: "your-sendgrid-api-key"
+  alert_recipient: "admin@example.com"
+
+paths:
+  download_dir: "downloads"
+  template_dir: "templates"
