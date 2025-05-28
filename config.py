@@ -231,6 +231,8 @@ class Config:
                 # This is a simple heuristic; more complex type casting might be needed
                 # if specific validation rules were 'int' or 'bool' for CRITICAL_CONFIG_KEYS
                 # Use precomputed dictionary for faster lookups
+                if key_tuple not in CRITICAL_CONFIG_MAP:
+                    logger.warning("Key tuple '%s' is missing from CRITICAL_CONFIG_MAP. Type conversion might be skipped.", key_tuple)
                 expected_type = CRITICAL_CONFIG_MAP.get(key_tuple)
                 
                 if expected_type == 'int':
