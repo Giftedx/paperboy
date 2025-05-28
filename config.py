@@ -164,14 +164,15 @@ class Config:
 
         # Load .env file first. It sets environment variables.
         if os.path.exists(env_path):
+            self._env_file_processed = True  # Tracks whether the .env file was found and processed successfully.
             self._env_file_loaded = load_dotenv(env_path, verbose=True, override=True) # override=True ensures .env can set vars even if they exist
             if self._env_file_loaded:
                  logger.info("Loaded environment variables from '%s'. These may be overridden by environment-set variables.", env_path)
             else: # load_dotenv returns False if file is empty or only comments
                  logger.info(".env file at '%s' was processed but set no new environment variables (they may already exist or file is empty/comments-only).", env_path)
-                 self._env_file_loaded = True # Still mark as processed for logging purposes
         else:
             logger.info(".env file not found at '%s'. Skipping .env load.", env_path)
+            self._env_file_processed = False
             self._env_file_loaded = False
 
         # Load YAML config
@@ -229,11 +230,10 @@ class Config:
                 # Attempt to cast common types from environment variables
                 # This is a simple heuristic; more complex type casting might be needed
                 # if specific validation rules were 'int' or 'bool' for CRITICAL_CONFIG_KEYS
-                expected_type = None
-                for k_path, rule in CRITICAL_CONFIG_KEYS:
-                    if k_path == key_tuple:
-                        expected_type = rule
-                        break
+                # Use precomputed dictionary for faster lookups
+                if key_tuple not in CRITICAL_CONFIG_MAP:
+                    logger.warning("Key tuple '%s' is missing from CRITICAL_CONFIG_MAP. Type conversion might be skipped.", key_tuple)
+                expected_type = CRITICAL_CONFIG_MAP.get(key_tuple)
                 
                 if expected_type == 'int':
                     try:

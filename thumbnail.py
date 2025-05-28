@@ -75,7 +75,7 @@ def _create_thumbnail_pymupdf(input_path, output_path, width, height, fmt, quali
     doc = None
     try:
         doc = fitz.open(input_path)
-        if not doc.page_count > 0:
+        if doc.page_count <= 0:
             logger.error("PyMuPDF: No pages in PDF: '%s'.", input_path)
             return False
         
