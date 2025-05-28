@@ -2,6 +2,12 @@
 {% block content %}
 <div class="container py-4">
   <h2 class="mb-4">Settings</h2>
+  <div class="alert alert-danger" role="alert">
+    <h4 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> Security Warning!</h4>
+    <p>Editing configuration files, especially <strong>.env</strong> which contains secrets, directly through this web interface poses a significant security risk if this application is accessible over a network.</p>
+    <hr>
+    <p class="mb-0">Ensure this application is running in a secure, local-only environment, or that appropriate authentication and authorization mechanisms are in place if it's exposed externally. Do not expose this interface to untrusted users.</p>
+  </div>
   <form method="post" class="card p-4 shadow-sm mb-4">
     <h4>Configuration File <span class="badge bg-secondary">config.yaml</span></h4>
     <div class="mb-3">

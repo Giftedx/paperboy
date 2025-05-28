@@ -101,15 +101,48 @@ def config_editor():
 def email_preview():
     preview_html = None
     if request.method == 'POST':
-        from datetime import date
-        today = date.today()
+        from datetime import date, datetime, timedelta # Ensure datetime and timedelta are imported
+        
+        today = date.today() # This is the target_date for the email
         today_paper_url = request.form.get('today_paper_url', '#')
-        past_papers = []
         thumbnail_path = request.form.get('thumbnail_path', None)
+
+        dynamic_past_papers = []
+        RETENTION_DAYS_PREVIEW = 7 
+        DATE_FORMAT = '%Y-%m-%d'
+
+        try:
+            all_files = storage.list_storage_files() # Assumes storage is imported
+            if all_files:
+                dated_files = []
+                for filename in all_files:
+                    try:
+                        # Assuming filename starts with YYYY-MM-DD
+                        date_str = filename.split('_')[0]
+                        file_date = datetime.strptime(date_str, DATE_FORMAT).date()
+                        if "_newspaper" in filename and (filename.endswith(".pdf") or filename.endswith(".html")):
+                            dated_files.append((file_date, filename))
+                    except (ValueError, IndexError):
+                        # Skip files that don't match expected naming or date format
+                        app.logger.debug(f"Skipping file in preview generation (name/date format error): {filename}")
+                        continue 
+                
+                dated_files.sort(key=lambda x: x[0], reverse=True) # Sort by date, most recent first
+                
+                for file_date, filename in dated_files[:RETENTION_DAYS_PREVIEW]:
+                    url = storage.get_file_url(filename) # Assumes storage.get_file_url exists
+                    if url:
+                        dynamic_past_papers.append((file_date.strftime(DATE_FORMAT), url))
+                    else:
+                        app.logger.warning(f"Could not get URL for {filename} in preview generation.")
+        except Exception as e:
+            app.logger.error(f"Error fetching past papers for email preview: {e}")
+            flash(f"Error generating past papers list for preview: {e}", "warning")
+
         preview_html = email_sender.send_email(
             target_date=today,
             today_paper_url=today_paper_url,
-            past_papers=past_papers,
+            past_papers=dynamic_past_papers, # Use the dynamically generated list
             thumbnail_path=thumbnail_path,
             dry_run=True
         )

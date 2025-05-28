@@ -1,31 +1,62 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>📰 Your Daily Newspaper for <span style="color:#0d6efd;">{{ date }}</span></h2>
-{% if recipient %}
-<p>Hello {{ recipient }},</p>
-{% endif %}
-<p>{{ archive_summary }}</p>
-<p>Here's a quick look at today's front page:</p>
-{% if thumbnail_cid %}
-<div style="text-align:center;margin-bottom:1em;">
-  <img src="cid:{{ thumbnail_cid }}" alt="Today's Front Page Thumbnail" width="320" style="border-radius:8px;box-shadow:0 2px 8px #bbb;">
-</div>
-{% endif %}
-<p style="text-align:center;margin-bottom:2em;">
-  <a href="{{ today_paper_url }}" style="font-size:1.2em;" class="btn btn-primary btn-lg">Read Today's Newspaper</a>
-</p>
-<hr>
-<h3 style="margin-top:2em;">Past 7 Days' Papers</h3>
-<ul style="list-style:none;padding-left:0;">
-  {% for day, link in past_papers %}
-  <li style="margin-bottom:0.5em;">
-    <a href="{{ link }}" style="text-decoration:none;">
-      <span class="badge bg-secondary" style="font-size:1em;{% if day == date %}background:#0d6efd;color:#fff;{% endif %}">
-        {{ day }}{% if day == date %} (Today){% endif %}
-      </span>
-    </a>
-  </li>
-  {% endfor %}
-</ul>
-<p style="margin-top:2em;font-size:0.95em;color:#888;">This email was automatically generated. If you have any questions, just reply to this message.</p>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Daily Newspaper for {{ date }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; }
+        .container { background-color: #ffffff; padding: 25px; border-radius: 8px; max-width: 600px; margin: 10px auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .header { font-size: 24px; color: #0d6efd; margin-bottom: 15px; text-align: center; }
+        .greeting { margin-bottom: 15px; font-size: 1.1em; }
+        .summary { margin-bottom: 20px; font-size: 1em; color: #555; }
+        .thumbnail-container { text-align: center; margin-bottom: 20px; }
+        .thumbnail { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #e0e0e0; }
+        .button-cta { text-align: center; margin-bottom: 25px; }
+        .button { background-color: #0d6efd; color: white !important; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 1.1em; font-weight: bold; }
+        .past-papers-title { font-size: 18px; margin-top: 20px; margin-bottom: 10px; border-top: 1px solid #eeeeee; padding-top: 20px; }
+        .past-papers-list { list-style: none; padding-left: 0; }
+        .past-papers-list li { margin-bottom: 8px; }
+        .past-papers-link { text-decoration: none; font-size: 1em; }
+        .past-papers-badge { padding: 5px 10px; border-radius: 4px; background-color: #6c757d; color: white; font-weight: normal; }
+        .past-papers-badge.today { background-color: #0d6efd; }
+        .footer { margin-top: 25px; font-size: 0.9em; color: #777; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">📰 Your Daily Newspaper for {{ date }}</div>
+        
+        {% if recipient %}
+        <p class="greeting">Hello {{ recipient }},</p>
+        {% endif %}
+        
+        <p class="summary">{{ archive_summary }}</p>
+        
+        {% if thumbnail_cid %}
+        <div class="thumbnail-container">
+          <img src="cid:{{ thumbnail_cid }}" alt="Today's Front Page Thumbnail" class="thumbnail" width="300">
+        </div>
+        {% endif %}
+        
+        <div class="button-cta">
+          <a href="{{ today_paper_url }}" class="button">Read Today's Newspaper</a>
+        </div>
+        
+        <div class="past-papers-title">Past 7 Days' Papers</div>
+        <ul class="past-papers-list">
+          {% for day_str, link in past_papers %}
+          <li>
+            <a href="{{ link }}" class="past-papers-link">
+              <span class="past-papers-badge {% if day_str == date %}today{% endif %}">
+                {{ day_str }}{% if day_str == date %} (Today){% endif %}
+              </span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        
+        <p class="footer">This email was automatically generated. If you have any questions, just reply to this message.</p>
+    </div>
+</body>
+</html>
