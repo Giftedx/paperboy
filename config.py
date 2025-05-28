@@ -164,7 +164,7 @@ class Config:
 
         # Load .env file first. It sets environment variables.
         if os.path.exists(env_path):
-            self._env_file_processed = True
+            self._env_file_processed = True  # Tracks whether the .env file was found and processed successfully.
             self._env_file_loaded = load_dotenv(env_path, verbose=True, override=True) # override=True ensures .env can set vars even if they exist
             if self._env_file_loaded:
                  logger.info("Loaded environment variables from '%s'. These may be overridden by environment-set variables.", env_path)
