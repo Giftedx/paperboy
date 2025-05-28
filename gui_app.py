@@ -462,4 +462,6 @@ if __name__ == '__main__':
     # This would typically be handled by a more robust startup/init process
     # For now, scheduler is started via UI interaction.
 
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('FLASK_PORT', 8080)))
+    # Determine if the app should run in debug mode based on the environment
+    is_debug = os.environ.get('FLASK_ENV', 'development') != 'production'
+    app.run(debug=is_debug, host='0.0.0.0', port=int(os.environ.get('FLASK_PORT', 8080)))
