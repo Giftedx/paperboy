@@ -230,11 +230,8 @@ class Config:
                 # Attempt to cast common types from environment variables
                 # This is a simple heuristic; more complex type casting might be needed
                 # if specific validation rules were 'int' or 'bool' for CRITICAL_CONFIG_KEYS
-                expected_type = None
-                for k_path, rule in CRITICAL_CONFIG_KEYS:
-                    if k_path == key_tuple:
-                        expected_type = rule
-                        break
+                # Use precomputed dictionary for faster lookups
+                expected_type = CRITICAL_CONFIG_MAP.get(key_tuple)
                 
                 if expected_type == 'int':
                     try:
