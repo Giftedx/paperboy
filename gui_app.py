@@ -170,7 +170,16 @@ def archive():
 @app.route('/archive/download/<path:filename>') # Use path converter for filenames with slashes
 def download_archive_file(filename): # Renamed to avoid conflict
     try:
-        local_path = storage.download_to_temp(filename)
+        # Define a safe root directory for temporary files
+        safe_root = '/tmp/safe_storage'
+        # Normalize the filename and construct the full path
+        normalized_path = os.path.normpath(os.path.join(safe_root, filename))
+        # Ensure the normalized path is within the safe root directory
+        if not normalized_path.startswith(safe_root):
+            flash(f'Invalid file path: {filename}.', 'danger')
+            return redirect(url_for('archive'))
+        
+        local_path = storage.download_to_temp(normalized_path)
         if local_path:
             return send_file(local_path, as_attachment=True)
         else:
