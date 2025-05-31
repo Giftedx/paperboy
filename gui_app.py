@@ -7,6 +7,7 @@ Allows admin to monitor, trigger, and configure the newspaper delivery pipeline.
 import os
 import logging
 import json
+import yaml
 from datetime import date, timedelta, datetime
 import time
 import threading
@@ -227,26 +228,43 @@ def config_editor():
         flash(f"Error reading configuration files: {e}", "danger")
 
     if request.method == 'POST':
+        new_config_content = request.form.get('config_content', '') # Renamed to avoid conflict with module
+        new_env_content = request.form.get('env_content', '')   # Renamed
+
         try:
-            new_config = request.form.get('config_content', '')
-            new_env = request.form.get('env_content', '')
+            # Validate YAML syntax first
+            yaml.safe_load(new_config_content)
             
-            # Basic validation could be added here (e.g., is YAML valid?) before writing
-            # For now, directly writing content.
-            with open(config_path, 'w', encoding='utf-8') as f:
-                f.write(new_config)
-            with open(env_path, 'w', encoding='utf-8') as f:
-                f.write(new_env)
-            
-            # Reload config after changes
-            config.config.load() 
-            flash('Configuration updated and reloaded.', 'success')
-        except IOError as e:
-            logger.error(f"Error writing config/env files: {e}")
-            flash(f"Error saving configuration files: {e}", "danger")
-        except Exception as e:
+            # YAML is valid, proceed to attempt saving
+            try:
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    f.write(new_config_content)
+                with open(env_path, 'w', encoding='utf-8') as f:
+                    f.write(new_env_content)
+
+                config.config.load() # Reload config
+                flash('Configuration updated and reloaded.', 'success')
+            except IOError as e: # Catch IO errors during write
+                logger.error(f"Error writing config/env files: {e}")
+                flash(f"Error saving configuration files: {e}", "danger")
+            # No specific 'else' needed here for the inner try; if no IOError, success flash is shown.
+
+        except yaml.YAMLError as e: # Catch YAML validation errors
+            logger.error(f"Invalid YAML syntax in config.yaml: {e}")
+            flash(f"Invalid YAML syntax in config.yaml: {e}", "danger")
+            # Return to editor, preserving user's input for correction
+            return render_template('config_editor.html',
+                                   config_content=new_config_content,
+                                   env_content=new_env_content) # Pass back the attempted content
+
+        except Exception as e: # Catch other unexpected errors (e.g., during config.config.load())
             logger.exception("Unexpected error updating configuration.")
             flash(f"An unexpected error occurred: {e}", "danger")
+            return render_template('config_editor.html',
+                                   config_content=new_config_content,
+                                   env_content=new_env_content) # Pass back the attempted content
+
+        # Redirect only if no YAML error occurred and re-rendering wasn't done
         return redirect(url_for('config_editor'))
         
     return render_template('config_editor.html', config_content=config_content, env_content=env_content)

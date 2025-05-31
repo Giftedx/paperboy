@@ -10,13 +10,13 @@ A GitHub Actions-powered solution that automatically downloads your daily newspa
   - Embedded newspaper thumbnail
   - Direct link to the day's newspaper
   - Links to the past 6 days' papers
-  - Compatible with multiple email providers (SendGrid, Mailgun)
+  - Compatible with multiple email providers (SendGrid, Mailgun - Mailgun is supported via generic SMTP)
   - Generates thumbnails for downloaded newspapers (supports PDF and HTML). PDF thumbnails are created using PyMuPDF (fitz) or pdf2image (requires Poppler utilities). HTML thumbnails use Playwright.
 - **Robust Design:**
   - Fallback mechanisms for JavaScript-heavy websites (Playwright)
   - Multiple thumbnail generation options (PyMuPDF, pdf2image)
   - Error handling and detailed logging
-  - A web-based GUI is also available for managing and monitoring the application (see `gui_app.py`). It includes features for manual runs, archive management, configuration editing, and a basic scheduler.
+  - A web-based GUI is also available for managing and monitoring the application (see `gui_app.py`). It includes features for manual runs, archive management, configuration editing, and a basic scheduler. The GUI also includes a basic built-in scheduler, offering an alternative to system-level task schedulers for managing automated runs.
 
 ## 🛠️ Setup Instructions
 
@@ -26,6 +26,7 @@ A GitHub Actions-powered solution that automatically downloads your daily newspa
 - A newspaper subscription with web login
 - A Cloudflare R2 account (free tier) or AWS S3
 - A SendGrid account (free tier) or Mailgun account
+- Poppler Utilities: Required if `pdf2image` is used as a fallback for PDF thumbnail generation. Installation varies by OS (e.g., `poppler-utils` on Debian/Ubuntu, `poppler` on macOS via Homebrew).
 
 ### 2. Fork/Clone This Repository
 
@@ -63,7 +64,7 @@ For public access to your files, you'll need to set up a Cloudflare Worker or R2
 1. Sign up for a [Mailgun account](https://signup.mailgun.com/new/signup) (free tier allows sending to authorized recipients)
 2. Get your API key and domain information
 3. Add recipients to your authorized recipients list (for the sandbox domain)
-Mailgun can be used via the generic SMTP settings. For dedicated Mailgun API usage, further customization of `email_sender.py` would be required.
+Note: Mailgun is used via generic SMTP settings in this project. For dedicated Mailgun API usage, further customization of `email_sender.py` would be required.
 
 ### 5. Configure GitHub Repository Secrets
 
