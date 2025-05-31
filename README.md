@@ -11,10 +11,12 @@ A GitHub Actions-powered solution that automatically downloads your daily newspa
   - Direct link to the day's newspaper
   - Links to the past 6 days' papers
   - Compatible with multiple email providers (SendGrid, Mailgun)
+  - Generates thumbnails for downloaded newspapers (supports PDF and HTML). PDF thumbnails are created using PyMuPDF (fitz) or pdf2image (requires Poppler utilities). HTML thumbnails use Playwright.
 - **Robust Design:**
   - Fallback mechanisms for JavaScript-heavy websites (Playwright)
   - Multiple thumbnail generation options (PyMuPDF, pdf2image)
   - Error handling and detailed logging
+  - A web-based GUI is also available for managing and monitoring the application (see `gui_app.py`). It includes features for manual runs, archive management, configuration editing, and a basic scheduler.
 
 ## 🛠️ Setup Instructions
 
@@ -61,6 +63,7 @@ For public access to your files, you'll need to set up a Cloudflare Worker or R2
 1. Sign up for a [Mailgun account](https://signup.mailgun.com/new/signup) (free tier allows sending to authorized recipients)
 2. Get your API key and domain information
 3. Add recipients to your authorized recipients list (for the sandbox domain)
+Mailgun can be used via the generic SMTP settings. For dedicated Mailgun API usage, further customization of `email_sender.py` would be required.
 
 ### 5. Configure GitHub Repository Secrets
 

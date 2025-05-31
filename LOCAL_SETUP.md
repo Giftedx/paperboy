@@ -8,6 +8,7 @@ This guide will help you set up the newspaper downloader to run on your local ma
 - A newspaper subscription with web login
 - A Cloudflare R2 account (free tier) or AWS S3 account
 - A SendGrid account (free tier) or Mailgun account
+- Poppler utilities (if using `pdf2image` as a fallback for PDF thumbnails, e.g., `pdftoppm`).
 
 ## Step 1: Configure Storage Provider
 
