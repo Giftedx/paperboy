@@ -285,8 +285,8 @@ class TestConfig(unittest.TestCase):
                 # get() should return the string itself if casting to bool fails
                 self.assertEqual(self.config_instance.get(test_bool_key), val_str, f"Failed for invalid bool value: {val_str}")
 
-        # Clean up env var for boolean test
-        del os.environ['FEATURE_ENABLED_TEST_BOOL']
+        # Register cleanup for env var used in boolean test
+        self.addCleanup(lambda: os.environ.pop('FEATURE_ENABLED_TEST_BOOL', None))
 
         # Simulate that these keys are not in YAML, so get() falls back to env
         with patch.object(self.config_instance, '_config', {}):
