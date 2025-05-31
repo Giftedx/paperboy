@@ -1,0 +1,244 @@
+# Configuration template for the Automated Newspaper Downloader & Emailer
+#
+# How to use:
+# 1. Rename this file to `config.yaml`.
+# 2. Fill in the required values below.
+# 3. For sensitive information (passwords, API keys), it's STRONGLY RECOMMENDED
+#    to use a `.env` file in the project root instead of putting them directly here.
+#    The application will load values from `.env` first if it exists.
+#    Environment variable names should follow the pattern: SECTION_KEY_UPPERCASE
+#    Example: for newspaper.username, the .env variable is NEWSPAPER_USERNAME.
+#
+# This application also supports overriding config paths via environment variables:
+# - NEWSPAPER_CONFIG: Path to your config YAML file (default: config.yaml)
+# - NEWSPAPER_ENV: Path to your .env file (default: .env)
+
+# General Application Settings
+general:
+  # Date format used for filenames, logs, and display.
+  # Default used by application if not set: %Y-%m-%d
+  date_format: %Y-%m-%d
+
+  # Filename template for downloaded newspapers. {date} and {format} are placeholders.
+  # Default used by application if not set: {date}_newspaper.{format}
+  filename_template: "{date}_newspaper.{format}"
+
+  # Filename template for generated thumbnails. {date} and {format} are placeholders.
+  # Default used by application if not set: {date}_thumbnail.{format}
+  thumbnail_filename_template: "{date}_thumbnail.{format}"
+
+  # Number of days to retain links to past newspapers in the main email body.
+  # Default used by application if not set: 7
+  retention_days_for_email_links: 7
+
+  # Number of days to keep newspaper files in cloud storage. Older files will be deleted.
+  # Default used by application if not set: 7
+  retention_days_in_storage: 7
+
+# Paths used by the application
+paths:
+  # Directory where newspapers and thumbnails are downloaded/created locally before upload.
+  # Default used by application if not set: downloads
+  download_dir: downloads
+  # Log file name. Default is newspaper_emailer.log in the project root. Not typically set here.
+  # log_file: newspaper_emailer.log
+
+# Newspaper Specific Settings
+newspaper:
+  # REQUIRED: URL of the newspaper's login page.
+  # Example: https://www.example-newspaper.com/login
+  url: YOUR_NEWSPAPER_LOGIN_URL
+
+  # REQUIRED: Username or email for the newspaper subscription.
+  # Recommended: Store in .env as NEWSPAPER_USERNAME
+  username: your_username
+
+  # REQUIRED: Password for the newspaper subscription.
+  # Recommended: Store in .env as NEWSPAPER_PASSWORD
+  password: your_password
+
+  # (Optional) URL of the page where the download link is typically found,
+  # if different from the main/login page or the page landed on after login.
+  # The script will navigate here after a successful Playwright login if specified.
+  download_page_url: ""
+
+  # (Optional) User-Agent string for HTTP requests (requests library).
+  # Default: Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+  # --- Selectors for Playwright-based login and scraping ---
+  # These are primarily used by the Playwright helper functions.
+  # It's recommended to keep these advanced settings here or use defaults if unsure.
+  selectors:
+    # CSS selector for the username input field on the login page.
+    # Default: input[name="username"]
+    username: 'input[name="username"]'
+
+    # CSS selector for the password input field on the login page.
+    # Default: input[name="password"]
+    password: 'input[name="password"]'
+
+    # CSS selector for the submit button on the login page.
+    # Default: button[type="submit"]
+    submit: 'button[type="submit"]'
+
+    # (Optional) CSS selector for an element that indicates a successful login.
+    # Example: #user-profile-link, .user-avatar
+    # If found after login attempt, login is considered successful.
+    login_success: '#user-profile-link'
+
+    # (Optional) URL pattern (regex) to match against after login.
+    # If the URL after login matches this pattern, login is considered successful.
+    # Example: https://www.example-newspaper.com/dashboard
+    login_success_url: ''
+
+    # (Optional) CSS selectors for finding the newspaper download link on a page.
+    # Used if direct download fails and scraping is attempted.
+    # This should be a list of selectors, tried in order.
+    # Defaults in code: ['a[href$=".pdf"]', 'a[href$=".html"]', 'a.download-button[href]', 'a#downloadLink[href]']
+    download_link_css_selectors:
+      - 'a[href$=".pdf"]'
+      - 'a[href$=".html"]'
+      # Add more specific selectors for your newspaper if needed
+      # - '.some-class-name a[href]'
+
+# Storage Configuration (Choose R2 or S3)
+storage:
+  # REQUIRED: Specify the storage provider. Options: R2, S3, local, dryrun
+  # 'local' stores files in 'local_storage/' directory (mainly for testing).
+  # 'dryrun' simulates storage operations without actual uploads/deletes.
+  # Default used by application if not set: dryrun
+  provider: R2 # Or S3, local, dryrun
+
+  # REQUIRED: Name of your R2 bucket or S3 bucket.
+  # Recommended: Store in .env as STORAGE_BUCKET_NAME
+  bucket_name: your_bucket_name
+
+  # --- R2 Specific Settings (if provider is R2) ---
+  r2:
+    # REQUIRED if provider is R2: Your Cloudflare Account ID.
+    # Recommended: Store in .env as R2_ACCOUNT_ID
+    account_id: YOUR_R2_ACCOUNT_ID
+
+    # REQUIRED if provider is R2: R2 Access Key ID.
+    # Recommended: Store in .env as R2_ACCESS_KEY_ID
+    access_key_id: YOUR_R2_ACCESS_KEY_ID
+
+    # REQUIRED if provider is R2: R2 Secret Access Key.
+    # Recommended: Store in .env as R2_SECRET_ACCESS_KEY
+    secret_access_key: YOUR_R2_SECRET_ACCESS_KEY
+
+    # (Optional) Public URL prefix for accessing files in R2, if you have a custom domain or public bucket URL.
+    # Example: https://your-r2-public-bucket-url.com
+    # If not set, the script attempts to construct a standard R2 URL if needed by some parts (like email).
+    public_url_prefix: ""
+
+  # --- S3 Specific Settings (if provider is S3) ---
+  s3:
+    # REQUIRED if provider is S3: S3 Access Key ID.
+    # Recommended: Store in .env as S3_ACCESS_KEY_ID
+    access_key_id: YOUR_S3_ACCESS_KEY_ID
+
+    # REQUIRED if provider is S3: S3 Secret Access Key.
+    # Recommended: Store in .env as S3_SECRET_ACCESS_KEY
+    secret_access_key: YOUR_S3_SECRET_ACCESS_KEY
+
+    # REQUIRED if provider is S3: AWS Region for your S3 bucket.
+    # Example: us-east-1
+    # Recommended: Store in .env as S3_REGION
+    region: your_s3_bucket_region
+
+    # (Optional) Public URL prefix for S3.
+    # Example: https://your-bucket-name.s3.your-region.amazonaws.com
+    # If not set, a standard S3 URL might be constructed if needed.
+    public_url_prefix: ""
+
+  # --- Local Storage Specific Settings (if provider is local) ---
+  local:
+    # Directory path for local storage.
+    # Default used by application if not set: local_storage/
+    storage_path: local_storage/
+    # Public URL base for local files (if you serve them via a local webserver for testing).
+    # Example: http://localhost:8000/local_storage
+    public_url_base: ""
+
+
+# Email Configuration
+email:
+  # REQUIRED: Primary recipient email address.
+  # For multiple recipients, this can be a group email or you can customize email_sender.py.
+  # Recommended: Store in .env as EMAIL_RECIPIENT
+  recipient: your_recipient_email@example.com
+
+  # REQUIRED: Sender email address (must be verified with your email provider).
+  # Recommended: Store in .env as EMAIL_SENDER
+  sender: your_sender_email@example.com
+
+  # Subject line for the daily newspaper email. {date} is a placeholder.
+  # Default: Daily Newspaper: {date}
+  subject: "Daily Newspaper: {date}"
+
+  # --- SMTP Settings (for sending email) ---
+  # REQUIRED: SMTP server address.
+  # Example: smtp.gmail.com, smtp.sendgrid.net
+  # Recommended: Store in .env as EMAIL_SMTP_SERVER
+  smtp_server: your_smtp_server
+
+  # REQUIRED: SMTP server port.
+  # Common ports: 587 (TLS), 465 (SSL), 25 (less common, often unencrypted)
+  # Recommended: Store in .env as EMAIL_SMTP_PORT (ensure it's an integer)
+  smtp_port: 587
+
+  # REQUIRED: Username for SMTP authentication. Often same as sender email.
+  # Recommended: Store in .env as EMAIL_SMTP_USERNAME
+  smtp_username: your_smtp_username
+
+  # REQUIRED: Password for SMTP authentication. For Gmail, this might be an App Password.
+  # Recommended: Store in .env as EMAIL_SMTP_PASSWORD
+  smtp_password: your_smtp_password
+
+  # Whether to use TLS encryption for SMTP. Set to true for port 587.
+  # Default: true
+  use_tls: true
+
+  # Whether to use SSL encryption for SMTP. Set to true for port 465.
+  # Default: false
+  use_ssl: false
+
+
+# Playwright Specific Settings (Advanced)
+# Used for complex website interactions if standard HTTP requests fail.
+playwright:
+  # Timeout in milliseconds for Playwright operations (navigation, selectors).
+  # Default: 30000 (30 seconds)
+  timeout: 30000
+
+  # Whether to run Playwright in headless mode (no visible browser window).
+  # Default: true (recommended for servers)
+  headless: true
+
+  # User data directory for Playwright browser sessions.
+  # Can be used to persist sessions/cookies if needed, but might have security implications.
+  # Leave blank to use ephemeral sessions.
+  # Example: /path/to/your/playwright_user_data
+  user_data_dir: "" # Optional
+
+
+# Thumbnail Generation Settings
+thumbnail:
+  # Preferred format for generated thumbnails. Options: JPEG, PNG.
+  # Default: JPEG
+  format: JPEG
+
+  # Quality for JPEG thumbnails (1-95). Higher is better quality, larger file.
+  # Default: 85
+  quality: 85
+
+  # Width of the generated thumbnail in pixels. Height will be scaled proportionally.
+  # Default: 300
+  width: 300
+
+  # For multi-page PDFs, which page to use for the thumbnail (0-indexed).
+  # Default: 0 (first page)
+  pdf_page_to_thumbnail: 0
+```

@@ -66,7 +66,14 @@ For public access to your files, you'll need to set up a Cloudflare Worker or R2
 3. Add recipients to your authorized recipients list (for the sandbox domain)
 Note: Mailgun is used via generic SMTP settings in this project. For dedicated Mailgun API usage, further customization of `email_sender.py` would be required.
 
-### 5. Configure GitHub Repository Secrets
+### 5. Initial Configuration Setup (Local)
+Before setting up GitHub Secrets, you can use the `--onboarding` feature to help create the initial `config.yaml` and `.env` files locally. Run the following command in your terminal:
+```bash
+python run_newspaper.py --onboarding
+```
+This interactive script will guide you through setting up the necessary parameters. The generated `.env` file will contain the values you'll need for the GitHub Secrets in the next step. The `config.yaml` can also be used for local test runs.
+
+### 6. Configure GitHub Repository Secrets
 
 In your GitHub repository, go to Settings → Secrets and variables → Actions, and add the following secrets:
 
@@ -122,15 +129,15 @@ DOWNLOAD_LINK_SELECTOR (CSS selector to find download link)
 EMAIL_SUBJECT_PREFIX (default: "Daily Newspaper")
 ```
 
-### 6. Customize the Email Template (Optional)
+### 7. Customize the Email Template (Optional)
 
 If you want to customize the email appearance, you can modify `templates/email_template.html`.
 
-### 7. Enable GitHub Actions
+### 8. Enable GitHub Actions
 
 Make sure GitHub Actions are enabled for your repository. The workflow is scheduled to run daily at 6:00 AM UTC, but you can modify this in `.github/workflows/daily_newspaper.yaml`.
 
-### 8. Manual Testing
+### 9. Manual Testing
 
 You can manually trigger the workflow from the "Actions" tab in your GitHub repository to test the setup before the scheduled run.
 
@@ -175,4 +182,4 @@ This project is available under the MIT License - see the LICENSE file for detai
 - Ensure your automation complies with the Terms of Service of your newspaper subscription
 - Keep your repository private to protect your credentials
 - GitHub Actions provides 2,000 free minutes per month, which is more than sufficient for this automation
-- Cloud storage and email services are used within their free tiers 
+- Cloud storage and email services are used within their free tiers

@@ -47,11 +47,15 @@ For public access to your files, you'll need to set up:
 
 ## Step 3: Configure the Application
 
-1. Edit the configuration file at `~/.newspaper/config.yaml` with your settings:
+You can run `python run_newspaper.py --onboarding` to get help creating the initial `config.yaml` and `.env` files.
+Alternatively, you can create them manually:
+1. Edit the configuration file at `config.yaml` with your settings:
    - Update your newspaper website URL, username, and password
    - Configure your storage provider settings (R2 or S3)
    - Configure your email service settings (SendGrid or Mailgun)
    - Update the recipient email addresses
+A `.env` file in the project root is used for storing secrets (API keys, passwords).
+For advanced users or specific deployment scenarios, the default paths for `config.yaml` and `.env` can be overridden using the `NEWSPAPER_CONFIG` and `NEWSPAPER_ENV` environment variables, respectively.
 
 ## Step 4: Test the Application
 
@@ -94,9 +98,12 @@ Set up a cron job to run the script daily:
    0 6 * * * /usr/bin/python /path/to/your/run_newspaper.py
    ```
 
+### Alternative: Using the Built-in GUI Scheduler
+The application also provides a web-based GUI (`gui_app.py`) which includes a basic scheduler. This can be an alternative to system-level cron (Linux/macOS) or Task Scheduler (Windows) if you prefer a graphical interface for managing schedules.
+
 ## Troubleshooting
 
-- Check the log file at `~/.newspaper/newspaper.log` for detailed error messages
+- Check the log file at `newspaper_emailer.log` for detailed error messages
 - Ensure your newspaper website hasn't changed its login or download process
 - Verify your cloud storage credentials have proper permissions
 - Check your email service dashboard for errors or limits
@@ -105,5 +112,4 @@ Set up a cron job to run the script daily:
 
 - Ensure your automation complies with the Terms of Service of your newspaper subscription
 - Keep your credentials secure and never share them
-- Cloud storage and email services are used within their free tiers
-- The system keeps the last 7 days of newspapers (including today) 
+- Cloud storage and email services are used

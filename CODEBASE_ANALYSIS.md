@@ -118,17 +118,29 @@ This section outlines further actions that could enhance the codebase, based on 
 *   **Current Status:** The `tests/` directory exists, and some tests are present (e.g., `test_config.py`, `test_email_sender.py`, `test_storage.py`, `test_thumbnail.py`, etc.). However, a detailed review of test coverage for edge cases and complex logic within each module was not performed during this analysis phase.
 *   **Recommendations:**
     *   **`website.py`:** This is a critical and complex module. Implement comprehensive tests, likely involving:
-        *   Mocking `requests.Session` and `playwright` interactions to simulate various website responses (successful login, failed login, different page structures, download success/failure).
-        *   Testing different selector configurations.
+        *   Mocking `requests.Session` and `playwright` interactions to simulate various website responses.
+        *   Testing different login scenarios: successful login, login failure (wrong credentials), login requiring MFA (if applicable, how it's handled or fails gracefully), login page structure changes.
+        *   Testing download logic: download link found, download link not found, HTTP errors during download (404, 500), successful download.
+        *   Testing various selector configurations.
     *   **`thumbnail.py`:** While some tests exist, expand to cover:
-        *   All fallback scenarios (PyMuPDF -> pdf2image).
-        *   Handling of corrupted or non-standard PDF/HTML files.
-        *   Different output formats and quality settings.
+        *   Testing with various file types: standard PDFs, encrypted PDFs (if supported or how it fails), multi-page PDFs (thumbnailing the correct page).
+        *   Testing HTML thumbnailing with simple and complex HTML structures, including those requiring JavaScript if Playwright is used.
+        *   Testing fallback mechanisms (e.g., PyMuPDF to pdf2image).
+        *   Testing handling of corrupted or malformed input files (PDF, HTML).
+        *   Testing different output quality/resolution settings if applicable.
     *   **`gui_app.py`:** Testing Flask applications can involve using the Flask test client. Focus on:
-        *   Backend logic of routes (e.g., form processing, API endpoints like `/progress`, `/preview_data`).
-        *   Authentication/authorization if any were to be added.
-        *   Interaction with `main.py` and other modules.
-    *   **`main.py`:** Test the main pipeline logic, possibly by mocking the core functions from other modules to verify orchestration flow and error handling.
+        *   Using Flask's test client for route testing.
+        *   Testing form submissions: valid and invalid data for the config editor, manual run form (date validation).
+        *   Testing API endpoints: `/progress` (different states), `/preview_data` (different states), `/schedule` (valid/invalid time, mode changes).
+        *   Testing interaction with the scheduler controls: starting, stopping, setting time.
+        *   Testing authentication/authorization if any were to be added in the future.
+        *   Testing error handling and flashing messages for user feedback.
+    *   **`main.py`:** Test the main pipeline logic:
+        *   Mocking dependencies (e.g., `website.download_newspaper`, `storage.upload_file`, `email_sender.send_email`, `thumbnail.generate_thumbnail`).
+        *   Testing the main pipeline orchestration logic: successful end-to-end run, failure at each major stage (download, thumbnailing, storage, email).
+        *   Testing `get_past_papers_from_storage` logic with various numbers of files in mock storage.
+        *   Testing status file updates (`update_status`).
+        *   Testing `dry_run` and `force_download` flags.
     *   **Coverage Analysis:** Integrate a tool like `coverage.py` to measure test coverage and identify untested code paths.
 
 ### 3.2. Refine Configuration Handling
