@@ -260,6 +260,9 @@ def config_editor():
         except Exception as e: # Catch other unexpected errors (e.g., during config.config.load())
             logger.exception("Unexpected error updating configuration.")
             flash(f"An unexpected error occurred: {e}", "danger")
+            return render_template('config_editor.html',
+                                   config_content=new_config_content,
+                                   env_content=new_env_content) # Pass back the attempted content
 
         # Redirect only if no YAML error occurred and re-rendering wasn't done
         return redirect(url_for('config_editor'))
