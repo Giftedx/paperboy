@@ -79,7 +79,6 @@ Pygments==2.19.1
 PyGObject==3.48.2
 PyJWT==2.7.0
 PyMuPDF==1.23.8
-PyMuPDFb==1.23.7
 pyparsing==3.1.1
 pypi-timemachine==0.2
 pyproject-api==1.9.0
