@@ -41,6 +41,7 @@ class Config:
         self._config = {}  # Loaded from YAML
         self._loaded = False
         self._env_file_loaded = False # Tracks if a .env file was processed
+        self.CRITICAL_CONFIG_MAP = {key_path: rule for key_path, rule in CRITICAL_CONFIG_KEYS}
 
     def _is_secret(self, key_name_parts):
         """
@@ -231,24 +232,22 @@ class Config:
                 # This is a simple heuristic; more complex type casting might be needed
                 # if specific validation rules were 'int' or 'bool' for CRITICAL_CONFIG_KEYS
                 # Use precomputed dictionary for faster lookups
-                if key_tuple not in CRITICAL_CONFIG_MAP:
-                    logger.warning("Key tuple '%s' is missing from CRITICAL_CONFIG_MAP. Type conversion might be skipped.", key_tuple)
-                expected_type = CRITICAL_CONFIG_MAP.get(key_tuple)
+                expected_type = self.CRITICAL_CONFIG_MAP.get(key_tuple)
                 
                 if expected_type == 'int':
                     try:
                         return int(env_value)
                     except ValueError:
-                        logger.warning("Env var '%s' with value '%s' could not be cast to int, returning as string.", env_key, env_value)
-                        return env_value # Or return default, or raise error
+                        logger.warning("Env var '%s' with value '%s' could not be cast to int, returning as string. Validation will occur in validate_critical_config.", env_key, env_value)
+                        return env_value # Return string, validation is centralized
                 elif expected_type == 'bool':
                     if env_value.lower() in ['true', '1', 'yes', 'y']:
                         return True
                     elif env_value.lower() in ['false', '0', 'no', 'n']:
                         return False
                     else:
-                        logger.warning("Env var '%s' with value '%s' could not be cast to bool, returning as string.", env_key, env_value)
-                        return env_value # Or return default
+                        logger.warning("Env var '%s' with value '%s' could not be cast to bool, returning as string. Validation will assess if this is acceptable.", env_key, env_value)
+                        return env_value # Return string, validation is centralized
                 return env_value # Return as string if no specific type cast or if cast failed warningly
             
             # If not in YAML and not in env, return default

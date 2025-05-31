@@ -23,6 +23,14 @@ class TestConfig(unittest.TestCase):
         # Or redirect it to a test-specific handler
         logging.disable(logging.CRITICAL) # Disable all logging less than CRITICAL for most tests
 
+    def test_critical_config_map_initialization(self):
+        """Test that CRITICAL_CONFIG_MAP is correctly initialized on Config instance."""
+        self.assertTrue(hasattr(self.config_instance, 'CRITICAL_CONFIG_MAP'))
+        self.assertIsInstance(self.config_instance.CRITICAL_CONFIG_MAP, dict)
+        for key_path, rule in CRITICAL_CONFIG_KEYS:
+            self.assertIn(key_path, self.config_instance.CRITICAL_CONFIG_MAP)
+            self.assertEqual(self.config_instance.CRITICAL_CONFIG_MAP[key_path], rule)
+
     def tearDown(self):
         """Teardown method to run after each test."""
         os.environ.clear()
@@ -245,20 +253,45 @@ class TestConfig(unittest.TestCase):
         """Test type casting for environment variables via get()."""
         # For these tests, CRITICAL_CONFIG_KEYS needs to have type info for these keys
         # We assume they are defined like: (('test', 'port'), 'int'), (('test', 'enable_feature'), 'bool')
-        # Since we can't modify CRITICAL_CONFIG_KEYS here easily without affecting other tests,
-        # this test relies on the existing definition for ('email', 'smtp_port').
         
-        os.environ['EMAIL_SMTP_PORT'] = "587" # String, but 'int' rule exists
-        # Test a boolean-like string (assuming a rule like (('feature', 'enabled'), 'bool') might exist)
-        # For now, no 'bool' rule exists in CRITICAL_CONFIG_KEYS, so it will be string.
-        os.environ['FEATURE_ENABLED_STRING'] = "true" 
+        # Preserve existing integer test
+        os.environ['EMAIL_SMTP_PORT'] = "587" # String, but 'int' rule exists in CRITICAL_CONFIG_KEYS
+
+        # Test for plain string (no rule)
         os.environ['GENERAL_TEXT'] = "some text"
+
+        # Comprehensive Boolean Testing
+        test_bool_key = ('feature', 'enabled_test_bool')
+        # Temporarily add this key to the instance's CRITICAL_CONFIG_MAP for boolean testing
+        # This is safe as self.config_instance is fresh for each test method due to setUp.
+        self.config_instance.CRITICAL_CONFIG_MAP[test_bool_key] = 'bool'
+
+        true_values = ["true", "1", "yes", "y", "TRUE"]
+        for val_str in true_values:
+            os.environ['FEATURE_ENABLED_TEST_BOOL'] = val_str
+            with patch.object(self.config_instance, '_config', {}): # Ensure fallback to env
+                self.assertTrue(self.config_instance.get(test_bool_key), f"Failed for true value: {val_str}")
+
+        false_values = ["false", "0", "no", "n", "FALSE"]
+        for val_str in false_values:
+            os.environ['FEATURE_ENABLED_TEST_BOOL'] = val_str
+            with patch.object(self.config_instance, '_config', {}):
+                self.assertFalse(self.config_instance.get(test_bool_key), f"Failed for false value: {val_str}")
+
+        invalid_bool_values = ["random", "maybe", ""]
+        for val_str in invalid_bool_values:
+            os.environ['FEATURE_ENABLED_TEST_BOOL'] = val_str
+            with patch.object(self.config_instance, '_config', {}):
+                # get() should return the string itself if casting to bool fails
+                self.assertEqual(self.config_instance.get(test_bool_key), val_str, f"Failed for invalid bool value: {val_str}")
+
+        # Register cleanup for env var used in boolean test
+        self.addCleanup(lambda: os.environ.pop('FEATURE_ENABLED_TEST_BOOL', None))
 
         # Simulate that these keys are not in YAML, so get() falls back to env
         with patch.object(self.config_instance, '_config', {}):
             self.assertEqual(self.config_instance.get(('email', 'smtp_port')), 587) # Should be cast to int
-            self.assertEqual(self.config_instance.get(('feature', 'enabled_string')), "true") # No rule, so string
-            self.assertEqual(self.config_instance.get(('general', 'text')), "some text")
+            self.assertEqual(self.config_instance.get(('general', 'text')), "some text") # No rule, so string
 
 
     @patch('config.load_dotenv', return_value=True)
