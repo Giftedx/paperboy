@@ -44,10 +44,26 @@ LOGIN_SUCCESS_SELECTOR = config.config.get(('newspaper', 'selectors', 'login_suc
 LOGIN_SUCCESS_URL_PATTERN = config.config.get(('newspaper', 'selectors', 'login_success_url'), '')
 
 # --- Helper Functions ---
-def _get_session_cookies(login_url, username, password):
-    """Uses Playwright to log in and extract session cookies."""
-    logger.info("Attempting to log in via Playwright to get session cookies.")
-    cookies = None
+def _get_session_cookies(login_url: str, username: str, password: str) -> list[dict] | None:
+    """
+    Log in to a website using Playwright and extract session cookies.
+
+    Navigates to the login page, fills in username and password, clicks submit,
+    and waits for login success indicators (CSS selector or URL pattern).
+    If login is successful, extracts and returns all browser context cookies.
+
+    Args:
+        login_url: The URL of the login page.
+        username: The username for login.
+        password: The password for login.
+
+    Returns:
+        A list of cookie dictionaries if login and cookie extraction are successful,
+        otherwise None. Each cookie dictionary typically contains keys like
+        'name', 'value', 'domain', 'path', 'expires', 'httpOnly', 'secure', 'sameSite'.
+    """
+    logger.info("Attempting to log in via Playwright to get session cookies from %s.", login_url)
+    cookies: list[dict] | None = None # Explicitly define type for clarity
     if not PLAYWRIGHT_AVAILABLE:
         logger.error("Playwright is not installed. Cannot use Playwright for login. Run `pip install playwright` and `playwright install`.")
         return None
@@ -55,68 +71,88 @@ def _get_session_cookies(login_url, username, password):
     browser = None 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True) 
+            browser = p.chromium.launch(headless=True) # Consider making headless configurable
             page = browser.new_page()
             logger.debug("Navigating to login page: %s", login_url)
-            page.goto(login_url, wait_until='networkidle')
+            page.goto(login_url, wait_until='networkidle') # Wait for network to be idle to ensure page is fully loaded
 
             logger.debug("Attempting to fill login form using selectors: [Username: %s, Password: %s, Submit: %s]", 
                          USERNAME_SELECTOR, PASSWORD_SELECTOR, SUBMIT_BUTTON_SELECTOR)
             
+            # Fill username
             if page.locator(USERNAME_SELECTOR).count() > 0:
                 page.fill(USERNAME_SELECTOR, username)
             else:
-                logger.error("Username field not found with selector: %s", USERNAME_SELECTOR)
-                if browser: browser.close()
-                return None
-                
-            if page.locator(PASSWORD_SELECTOR).count() > 0:
-                page.fill(PASSWORD_SELECTOR, password)
-            else:
-                logger.error("Password field not found with selector: %s", PASSWORD_SELECTOR)
-                if browser: browser.close()
-                return None
-                
-            if page.locator(SUBMIT_BUTTON_SELECTOR).count() > 0:
-                page.click(SUBMIT_BUTTON_SELECTOR)
-            else:
-                logger.error("Submit button not found with selector: %s", SUBMIT_BUTTON_SELECTOR)
+                logger.error("Username field not found with selector: '%s'", USERNAME_SELECTOR)
                 if browser: browser.close()
                 return None
 
+            # Fill password
+            if page.locator(PASSWORD_SELECTOR).count() > 0:
+                page.fill(PASSWORD_SELECTOR, password)
+            else:
+                logger.error("Password field not found with selector: '%s'", PASSWORD_SELECTOR)
+                if browser: browser.close()
+                return None
+
+            # Click submit button
+            if page.locator(SUBMIT_BUTTON_SELECTOR).count() > 0:
+                page.click(SUBMIT_BUTTON_SELECTOR)
+            else:
+                logger.error("Submit button not found with selector: '%s'", SUBMIT_BUTTON_SELECTOR)
+                if browser: browser.close()
+                return None
+
+            # Verify login success
             login_success = False
+            # Method 1: Check for a specific element indicating login success
             if LOGIN_SUCCESS_SELECTOR:
                 try:
                     logger.debug("Waiting for login success element: %s", LOGIN_SUCCESS_SELECTOR)
-                    page.wait_for_selector(LOGIN_SUCCESS_SELECTOR, timeout=30000)
+                    page.wait_for_selector(LOGIN_SUCCESS_SELECTOR, timeout=30000) # Wait up to 30s
                     login_success = True
                     logger.info("Login successful (based on element presence: %s).", LOGIN_SUCCESS_SELECTOR)
                 except PlaywrightTimeoutError:
-                    logger.warning("Login success element not found: %s", LOGIN_SUCCESS_SELECTOR)
+                    logger.warning("Login success element ('%s') not found after timeout.", LOGIN_SUCCESS_SELECTOR)
             
+            # Method 2 (if Method 1 failed): Check if URL matches a success pattern
             if not login_success and LOGIN_SUCCESS_URL_PATTERN:
                 try:
                     logger.debug("Waiting for login success URL pattern: %s", LOGIN_SUCCESS_URL_PATTERN)
-                    page.wait_for_url(LOGIN_SUCCESS_URL_PATTERN, timeout=30000)
+                    page.wait_for_url(LOGIN_SUCCESS_URL_PATTERN, timeout=30000) # Wait up to 30s
                     login_success = True
                     logger.info("Login successful (based on URL pattern: %s).", LOGIN_SUCCESS_URL_PATTERN)
                 except PlaywrightTimeoutError:
-                    logger.warning("Login success URL pattern not matched: %s", LOGIN_SUCCESS_URL_PATTERN)
-                    
+                    logger.warning("Login success URL pattern ('%s') not matched after timeout.", LOGIN_SUCCESS_URL_PATTERN)
+
+            # Method 3 (Fallback if specific selectors/URLs fail):
+            # Wait for network to be idle again and check for common error messages.
             if not login_success:
-                logger.debug("Using fallback method: waiting for network idle state")
-                page.wait_for_load_state('networkidle')
-                error_messages = page.locator('.login-error, .error-message, .alert-danger').count()
-                if error_messages > 0:
-                    error_text = page.locator('.login-error, .error-message, .alert-danger').text_content() or "Unknown login error"
-                    logger.error("Login error detected: %s", error_text)
+                logger.debug("Login success not confirmed by specific selectors/URL. Using fallback: waiting for network idle and checking for error messages.")
+                page.wait_for_load_state('networkidle', timeout=30000) # Wait for page to settle
+                # Check for common error message patterns/selectors
+                error_message_selectors = '.login-error, .error-message, .alert-danger, [class*="error"], [id*="error"]'
+                error_locator = page.locator(error_message_selectors)
+
+                if error_locator.count() > 0:
+                    # Try to get text from the first visible error message
+                    first_error_text = "Unknown login error (error element present but no text extracted)"
+                    for i in range(error_locator.count()):
+                        if error_locator.nth(i).is_visible():
+                            first_error_text = error_locator.nth(i).text_content(timeout=1000) or first_error_text
+                            break
+                    logger.error("Login error detected on page: %s", first_error_text.strip())
                     if browser: browser.close()
                     return None
-                login_success = True
-                logger.info("Login appears successful (based on network idle state and no error messages).")
+                else:
+                    # If no specific success indicators AND no error messages found, assume success.
+                    # This can be risky; strong success indicators are preferred.
+                    login_success = True
+                    logger.info("Login appears successful (based on network idle state and no explicit error messages found).")
             
+            # Final check if login was confirmed by any method
             if not login_success:
-                logger.error("Login could not be confirmed through any verification method.")
+                logger.error("Login could not be confirmed through any verification method (specific selectors, URL, or fallback error check).")
                 if browser: browser.close()
                 return None
 
@@ -135,10 +171,29 @@ def _get_session_cookies(login_url, username, password):
 
 def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
     """
-    Fallback method to download using Playwright when the requests method fails.
+    Attempt to download a file using Playwright.
+
+    This is typically used as a fallback if `requests`-based download methods fail.
+    It navigates to the download URL, handling cookies if provided, and waits
+    for a download event to save the file.
+
+    Args:
+        download_url: The direct URL to the file to be downloaded.
+        save_path: The base local path (without extension) where the file should be saved.
+                   The correct extension will be appended based on the downloaded file.
+        cookies: A list of cookie dictionaries (from a previous Playwright session)
+                 to be added to the Playwright context.
+        dry_run: If True, simulates the download attempt without actually saving the file.
+
+    Returns:
+        A tuple (bool, str):
+        - True if download is successful (or simulated successfully in dry_run),
+          False otherwise.
+        - A string indicating the determined file format (e.g., 'pdf', 'html') on success,
+          or an error message string on failure.
     """
     if not PLAYWRIGHT_AVAILABLE:
-        logger.error("Playwright not available for fallback download. Install with: pip install playwright")
+        logger.error("Playwright not available for fallback download. Install with: `pip install playwright` and `playwright install`.")
         return False, "Playwright not available"
     
     if dry_run:
@@ -149,15 +204,17 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
     browser = None
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True) # Consider making headless configurable
             context = browser.new_context()
             
+            # Add cookies to the context if provided
             if cookies:
                 formatted_cookies = []
-                for cookie_item in cookies: # Renamed to avoid conflict with module
+                for cookie_data in cookies:
+                    # Ensure cookie structure is valid for Playwright
                     pw_cookie = {
-                        'name': cookie_item.get('name'),
-                        'value': cookie_item.get('value'),
+                        'name': cookie_data.get('name'),
+                        'value': cookie_data.get('value'),
                         'domain': cookie_item.get('domain'),
                         'path': cookie_item.get('path', '/'), 
                         'expires': cookie_item.get('expires', -1), 
@@ -169,33 +226,43 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
                 context.add_cookies(formatted_cookies)
                     
             page = context.new_page()
+            # Ensure download directory exists
             download_folder = os.path.dirname(save_path)
             os.makedirs(download_folder, exist_ok=True)
-            page.context.set_default_timeout(60000)
             
-            download = None # Initialize download variable
-            with page.expect_download() as download_info:
-                logger.debug("Navigating to download URL: %s", download_url)
-                response = page.goto(download_url, wait_until='networkidle')
+            # Set a reasonable timeout for page operations and download event
+            page.context.set_default_timeout(60000) # 60 seconds
 
-            if not response: 
-                logger.error("Failed to navigate to download URL: %s", download_url)
+            download_event_info = None # Initialize download event info
+            # Start waiting for the download event *before* navigating
+            with page.expect_download(timeout=60000) as download_info_context:
+                logger.debug("Navigating to download URL with Playwright: %s", download_url)
+                page_response = page.goto(download_url, wait_until='networkidle', timeout=60000) # wait_until can also be 'domcontentloaded' or 'load'
+
+            download_event_info = download_info_context.value # Actual Download object
+
+            if not page_response:
+                logger.error("Playwright: Failed to navigate to download URL (no response): %s", download_url)
                 if browser: browser.close()
-                return False, "Navigation failed"
+                return False, "Playwright navigation failed (no response)"
             
-            if response.status >= 400: 
-                logger.error("Received error status code %d for URL %s", response.status, download_url)
+            if page_response.status >= 400:
+                logger.error("Playwright: Received error status code %d for URL %s", page_response.status, download_url)
                 if browser: browser.close()
-                return False, f"Error status: {response.status}"
+                return False, f"Playwright navigation error status: {page_response.status}"
 
-            download = download_info.value # type: ignore
-            downloaded_file_format = download.suggested_filename.split('.')[-1].lower()
-            if downloaded_file_format not in ['pdf', 'html']:
+            # Determine file format from suggested filename or default to 'pdf'
+            suggested_filename = download_event_info.suggested_filename
+            logger.info("Playwright: Download initiated, suggested filename: %s", suggested_filename)
+            downloaded_file_format = suggested_filename.split('.')[-1].lower() if '.' in suggested_filename else 'pdf'
+            if downloaded_file_format not in ['pdf', 'html']: # Ensure it's one of the expected types
+                logger.warning("Playwright: Downloaded file format '%s' not standard, defaulting to 'pdf'.", downloaded_file_format)
                 downloaded_file_format = 'pdf' 
             
+            # Construct final save path with the determined extension
             save_path_with_ext = f"{save_path}.{downloaded_file_format}"
-            download.save_as(save_path_with_ext)
-            logger.info("Playwright successfully downloaded file to: %s", save_path_with_ext)
+            download_event_info.save_as(save_path_with_ext)
+            logger.info("Playwright successfully downloaded and saved file to: %s", save_path_with_ext)
             return True, downloaded_file_format
             
     except PlaywrightTimeoutError as e:
@@ -213,67 +280,102 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
     return False, "Playwright download did not complete" # Fallback if not returned earlier
 
 # --- Main Orchestration Function ---
-def login_and_download(base_url, username, password, save_path, target_date=None, dry_run=False, force_download=False):
-    """Logs in to the website and downloads the newspaper for the given date."""
+def login_and_download(base_url: str, username: str, password: str,
+                       save_path: str, target_date: str | None = None,
+                       dry_run: bool = False, force_download: bool = False) -> tuple[bool, str]:
+    """
+    Log in to the newspaper website and download the edition for the specified date.
+
+    This function orchestrates the login process (via Playwright to get cookies),
+    then attempts to download the newspaper using `requests`. If `requests` fails,
+    it tries a scraping method to find a direct download link. If scraping also fails,
+    it falls back to downloading directly with Playwright.
+
+    Args:
+        base_url: The base URL of the newspaper website.
+        username: Username for login.
+        password: Password for login.
+        save_path: The base local path (without extension) to save the downloaded file.
+                   The correct extension (.pdf or .html) will be appended.
+        target_date: The target date for the newspaper in 'YYYY-MM-DD' format.
+                     Defaults to the current day if None.
+        dry_run: If True, simulates actions without actual downloads or file writes.
+        force_download: If True, downloads the file even if it already exists locally.
+
+    Returns:
+        A tuple (bool, str):
+        - True if successful, False otherwise.
+        - If successful, the determined file format ('pdf', 'html') or the full path
+          to the saved file (if not dry_run and file was downloaded).
+        - If failed, an error message string.
+    """
+    # Date handling
     if target_date is None:
-        target_date_obj = datetime.datetime.now()
+        target_date_obj = datetime.datetime.now().date() # Use .date() for date object
     else:
         try:
-            target_date_obj = datetime.datetime.strptime(target_date, '%Y-%m-%d')
+            target_date_obj = datetime.datetime.strptime(target_date, '%Y-%m-%d').date()
         except ValueError:
-            logger.error("Invalid target_date format. Please use YYYY-MM-DD.")
+            logger.error("Invalid target_date format '%s'. Please use YYYY-MM-DD.", target_date)
             return False, "Invalid date format"
     
-    # Ensure target_date is a string for URL construction and file naming
-    target_date_str = target_date_obj.strftime('%Y-%m-%d')
+    target_date_str = target_date_obj.strftime('%Y-%m-%d') # Consistent string format for internal use
 
-    abs_save_path = os.path.abspath(save_path)
+    # Prepare save path
+    abs_save_path = os.path.abspath(save_path) # Ensure path is absolute
     download_parent_dir = os.path.dirname(abs_save_path)
-    os.makedirs(download_parent_dir, exist_ok=True)
+    os.makedirs(download_parent_dir, exist_ok=True) # Create download directory if it doesn't exist
 
+    # Step 1: Login using Playwright to get session cookies
+    # -----------------------------------------------------
     logger.info("Step 1: Logging in to get session cookies.")
-    session_cookies = _get_session_cookies(LOGIN_URL, username, password)
+    session_cookies = _get_session_cookies(LOGIN_URL or base_url, username, password) # Use LOGIN_URL if defined, else base_url
     if not session_cookies:
         logger.error("Failed to obtain session cookies. Login unsuccessful.")
-        return False, "Failed to obtain cookies."
+        return False, "Login failed: Could not obtain session cookies."
         
-    file_exists_locally = False
-    determined_file_ext = ""
-    if not force_download:
+    # Step 2: Check if file already exists locally (unless force_download or dry_run)
+    # ------------------------------------------------------------------------------
+    if not force_download and not dry_run: # In dry_run, we always simulate the download attempt
         for ext in ['pdf', 'html']:
             potential_file = f"{abs_save_path}.{ext}"
             if os.path.exists(potential_file):
-                file_exists_locally = True
-                determined_file_ext = ext
-                logger.info("Newspaper file already exists: %s", potential_file)
-                break 
-        if file_exists_locally:
-            return True, determined_file_ext
+                logger.info("Newspaper file already exists locally: %s. Skipping download.", potential_file)
+                return True, ext # Return True and the extension of the existing file
                 
-    logger.info("Step 2: Downloading the newspaper for date: %s%s", 
+    logger.info("Step 2: Preparing to download newspaper for date: %s%s.",
                target_date_str, 
-               " (force download)" if force_download and file_exists_locally else "")
+               " (force download)" if force_download else "")
     
-    year = target_date_obj.strftime('%Y')
-    month = target_date_obj.strftime('%m')
-    day = target_date_obj.strftime('%d')
-    download_url_path = f"newspaper/download/{target_date_str}" 
+    # Construct the primary download URL (this might be site-specific)
+    # Example: base_url/newspaper/download/YYYY-MM-DD
+    # This part needs to be configured or made more generic if possible.
+    # For now, assuming a pattern; this should ideally come from config.
+    download_url_path = f"newspaper/download/{target_date_str}" # Example path
     actual_download_url = urljoin(base_url, download_url_path)
     
-    max_retries = 3
-    retry_delays = [5, 15, 30] 
+    # Step 3: Attempt download using Python `requests` with session cookies
+    # ---------------------------------------------------------------------
+    max_retries = config.config.get(('newspaper', 'download_retries'), 3)
+    retry_delays = config.config.get(('newspaper', 'retry_delays_s'), [5, 15, 30]) # In seconds
     
     for attempt in range(max_retries):
         try:
-            logger.debug("Attempting download from %s (Attempt %d/%d)", actual_download_url, attempt + 1, max_retries)
+            logger.debug("Attempting download from %s (Attempt %d/%d) using requests.", actual_download_url, attempt + 1, max_retries)
             session = requests.Session()
+            # Populate session with cookies obtained from Playwright login
             if session_cookies:
-                for cookie_item in session_cookies: # renamed variable
-                    session.cookies.set(cookie_item['name'], cookie_item['value'], domain=cookie_item['domain'], path=cookie_item.get('path', '/'))
+                for cookie_data in session_cookies:
+                    session.cookies.set(
+                        cookie_data['name'],
+                        cookie_data['value'],
+                        domain=cookie_data['domain'],
+                        path=cookie_data.get('path', '/')
+                    )
 
             response = session.get(
                 actual_download_url, 
-                headers={'User-Agent': USER_AGENT},
+                headers={'User-Agent': USER_AGENT}, # Use configured User-Agent
                 timeout=(10, 30), 
                 allow_redirects=True
             )

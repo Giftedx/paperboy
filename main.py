@@ -30,11 +30,29 @@ RETENTION_DAYS = 7
 STATUS_FILE = 'pipeline_status.json'
 
 # --- Status Update Function (Consolidated) ---
-def update_status(step, status, message=None, percent=None, eta=None, explainer=None):
-    """Enhanced status update for UI polling."""
+def update_status(step: str, status: str, message: str | None = None,
+                  percent: int | None = None, eta: str | None = None,
+                  explainer: str | None = None) -> None:
+    """
+    Update and write the current pipeline status to a JSON file.
+
+    This function is used for UI polling, providing frontend applications
+    with insights into the ongoing process.
+
+    Args:
+        step: A string identifying the current stage of the pipeline
+              (e.g., 'download', 'upload').
+        status: A string indicating the status of this step
+                (e.g., 'pending', 'in_progress', 'success', 'error', 'skipped').
+        message: An optional descriptive message for the current status.
+        percent: An optional integer representing the completion percentage (0-100).
+        eta: An optional string indicating the estimated time until completion
+             (e.g., "approx. 1-2 min").
+        explainer: An optional string providing more details or context for the current step/status.
+    """
     status_obj = {
         'step': step,
-        'status': status, # 'pending', 'in_progress', 'success', 'error', 'skipped'
+        'status': status,
         'message': message or '',
         'timestamp': datetime.now().isoformat(),
         'percent': percent,
@@ -51,9 +69,20 @@ def update_status(step, status, message=None, percent=None, eta=None, explainer=
 
 
 # --- Helper Functions ---
-def get_last_7_days_status():
-    """Checks local download directory for papers to determine recent readiness."""
-    logger.info("Checking status of downloads for the last 7 days.")
+def get_last_7_days_status() -> list[dict[str, str]]:
+    """
+    Check the local download directory for newspaper files from the last 7 days.
+
+    Determines if a newspaper (PDF or HTML) for each of the last 7 days
+    exists locally, providing a quick glance at recent download success.
+    The check is based on filenames matching the configured `FILENAME_TEMPLATE`.
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a day and
+        contains 'date' (YYYY-MM-DD string) and 'status' ('ready' or 'missing').
+        The list is sorted from oldest to most recent date.
+    """
+    logger.info("Checking status of local downloads for the last 7 days.")
     today = date.today()
     days_to_check = 7
     statuses = []
@@ -80,14 +109,30 @@ def get_last_7_days_status():
         else:
             statuses.append({'date': date_str, 'status': 'missing'})
             
-    statuses.reverse() 
+    statuses.reverse() # Sort from oldest to most recent
     logger.debug("Last 7 days status: %s", statuses)
     return statuses
 
-def get_past_papers_from_storage(target_date: date, days: int):
-    """Gets links to newspapers from cloud storage for the specified number of past days."""
-    logger.info("Retrieving links for past %d paper(s) from cloud storage, up to %s.", days, target_date.strftime(DATE_FORMAT))
-    past_papers_links = []
+def get_past_papers_from_storage(target_date: date, days: int) -> list[tuple[str, str]]:
+    """
+    Retrieve links to newspaper files from cloud storage for a specified number of past days.
+
+    It lists all files in the storage, filters for newspaper files (PDF/HTML),
+    parses dates from their filenames, and collects URLs for the most recent unique
+    `days` up to and including the `target_date`.
+
+    Args:
+        target_date: The reference date (usually today or the processing date).
+                     The function will look for papers up to this date.
+        days: The number of past days (including `target_date`) for which to retrieve links.
+
+    Returns:
+        A list of tuples, where each tuple contains (date_string, url_string).
+        The list is sorted with the most recent paper first.
+        Returns an empty list if no files are found or an error occurs.
+    """
+    logger.info("Retrieving links for the past %d paper(s) from cloud storage, up to %s.", days, target_date.strftime(DATE_FORMAT))
+    past_papers_links: list[tuple[str, str]] = []
     current_date_format = config.config.get(('general', 'date_format'), DATE_FORMAT)
 
     try:
@@ -97,21 +142,30 @@ def get_past_papers_from_storage(target_date: date, days: int):
             return []
 
         dated_files = []
+        # First, parse all filenames to extract dates and filter relevant files
         for filename in all_files:
             try:
+                # Assuming filename format like "YYYY-MM-DD_newspaper.pdf"
                 date_str = filename.split('_')[0]
                 file_date = datetime.strptime(date_str, current_date_format).date()
+                # Consider only actual newspaper files (PDF or HTML based on common naming)
                 if "newspaper" in filename and (filename.endswith(".pdf") or filename.endswith(".html")):
                     dated_files.append((file_date, filename))
             except (ValueError, IndexError):
+                # Log if filename doesn't match expected pattern for date parsing
                 logger.debug("Could not parse date from filename: '%s'. Skipping.", filename)
         
+        # Sort files by date, most recent first, to prioritize them
         dated_files.sort(key=lambda x: x[0], reverse=True)
 
-        unique_dates_found = {}
+        unique_dates_found: dict[date, tuple[str, str]] = {}
+        # Collect URLs for the most recent unique 'days'
         for file_date, filename in dated_files:
+            # Only consider files on or before the target_date
             if file_date <= target_date: 
+                # Ensure we only get one link per day (the most recent due to prior sort)
                 if file_date not in unique_dates_found: 
+                     # Stop if we have collected enough links for the specified number of 'days'
                      if len(unique_dates_found) < days: 
                         try:
                             url = storage.get_file_url(filename)
@@ -121,41 +175,65 @@ def get_past_papers_from_storage(target_date: date, days: int):
                                 logger.warning("Could not get URL for stored file: '%s'", filename)
                         except Exception as url_e:
                             logger.exception("Error getting URL for stored file '%s': %s", filename, url_e)
+                # Optimization: if we've found links for the required number of unique dates, stop processing.
                 if len(unique_dates_found) >= days:
                     break 
         
+        # Sort the collected links by date string (descending) to have the most recent first in the final list.
         past_papers_links = sorted(list(unique_dates_found.values()), key=lambda x: x[0], reverse=True)
-        logger.info("Collected %d past paper links from storage.", len(past_papers_links))
+        logger.info("Collected %d past paper links from storage for the last %d relevant days.", len(past_papers_links), days)
         return past_papers_links
     except Exception as e:
         logger.exception("Error retrieving past papers from storage: %s", e)
         return []
 
-def cleanup_old_files_main(target_date: date, dry_run: bool):
-    """Wrapper for cleanup_old_files to fetch retention_days from config."""
-    # Uses global RETENTION_DAYS which is updated after config load
-    logger.info("Initiating cleanup of files older than %d days relative to %s.", RETENTION_DAYS, target_date.strftime(DATE_FORMAT))
+def cleanup_old_files_main(target_date: date, dry_run: bool) -> None:
+    """
+    Clean up old newspaper files from cloud storage based on the retention policy.
+
+    This function uses the global `RETENTION_DAYS` (updated from config when `main()` runs)
+    to determine which files are considered old relative to the `target_date`.
+    It iterates through files in cloud storage, parses dates from filenames,
+    and deletes files older than the calculated cutoff date.
+
+    Args:
+        target_date: The reference date for calculating the age of files.
+        dry_run: If True, simulates deletion and logs actions without actually
+                 removing files from storage.
+    """
+    # RETENTION_DAYS is a global updated from config when main() runs.
+    logger.info("Initiating cleanup of files older than %d days relative to %s.",
+                RETENTION_DAYS, target_date.strftime(DATE_FORMAT))
     current_date_format = config.config.get(('general', 'date_format'), DATE_FORMAT)
 
     try:
         all_files = storage.list_storage_files()
         if not all_files:
-            logger.info("No files found in storage, skipping cleanup.")
+            logger.info("No files found in cloud storage, skipping cleanup.")
             return
 
+        # Calculate the cutoff date: files older than this (exclusive) will be deleted.
         cutoff_date = target_date - timedelta(days=RETENTION_DAYS)
-        logger.info("Files older than %s will be %sdeleted.", cutoff_date.strftime(current_date_format), "simulated for " if dry_run else "")
+        logger.info("Files older than %s (exclusive) will be %sdeleted.",
+                    cutoff_date.strftime(current_date_format),
+                    "simulated for " if dry_run else "")
 
         deleted_count = 0
+        # Iterate through all files in storage
         for filename in all_files:
             try:
+                # Assuming filename format like "YYYY-MM-DD_..."
                 date_str = filename.split('_')[0]
                 file_date = datetime.strptime(date_str, current_date_format).date()
+                # If the file's date is before the cutoff date, it's considered old.
                 if file_date < cutoff_date:
                     action_taken = storage.delete_from_storage(filename, dry_run=dry_run)
-                    if action_taken: # True if successful or dry_run
+                    # storage.delete_from_storage should return True if deletion was successful
+                    # or if it's a dry_run and would have been successful.
+                    if action_taken:
                         deleted_count +=1
             except (ValueError, IndexError):
+                # Log if filename doesn't match expected pattern for date parsing
                 logger.debug("Could not parse date from filename for cleanup: '%s'. Skipping.", filename)
         
         log_action = "Simulated deleting" if dry_run else "Deleted"
@@ -164,23 +242,45 @@ def cleanup_old_files_main(target_date: date, dry_run: bool):
         logger.exception("Error during old file cleanup: %s", e)
 
 # --- Main Execution Logic ---
-def main(target_date_str: str | None = None, dry_run: bool = False, force_download: bool = False):
-    """Main pipeline for downloading, storing, and preparing newspaper for email."""
+def main(target_date_str: str | None = None, dry_run: bool = False, force_download: bool = False) -> bool:
+    """
+    Execute the main newspaper processing pipeline.
+
+    This involves loading configuration, determining the target date, downloading
+    the newspaper, uploading to cloud storage, generating a thumbnail,
+    preparing and sending an email, and cleaning up old files.
+
+    Args:
+        target_date_str: Optional string for the target date in 'YYYY-MM-DD' format.
+                         If None, defaults to today.
+        dry_run: If True, simulates the process without actual downloads, uploads,
+                 email sending, or deletions.
+        force_download: If True, forces re-download even if the file exists locally.
+
+    Returns:
+        True if the pipeline completes successfully, False otherwise.
+    """
     global DATE_FORMAT, FILENAME_TEMPLATE, THUMBNAIL_FILENAME_TEMPLATE, RETENTION_DAYS # Allow update after config load
 
     try:
+        # Stage 1: Load Configuration
+        # --------------------------
         update_status('config_load', 'in_progress', 'Loading configuration...', percent=0)
         if not config.config.load(): 
+            logger.critical("Configuration validation failed. Exiting.") # Error details logged by config.load()
             update_status('config_load', 'error', 'Configuration failed. Check logs.', percent=0)
             return False
         update_status('config_load', 'success', 'Configuration loaded and validated.', percent=5)
 
-        # Update global constants from loaded config
+        # Update global constants from loaded config, as some helper functions might use them directly.
+        # This is a common pattern but consider passing config object or values explicitly in a larger refactor.
         DATE_FORMAT = config.config.get(('general', 'date_format'), DATE_FORMAT)
         FILENAME_TEMPLATE = config.config.get(('general', 'filename_template'), FILENAME_TEMPLATE)
         THUMBNAIL_FILENAME_TEMPLATE = config.config.get(('general', 'thumbnail_filename_template'), THUMBNAIL_FILENAME_TEMPLATE)
         RETENTION_DAYS = config.config.get(('general', 'retention_days'), RETENTION_DAYS)
 
+        # Stage 2: Determine Target Date
+        # -----------------------------
         update_status('date_setup', 'in_progress', 'Determining target date...', percent=10)
         if target_date_str:
             try:
@@ -190,20 +290,23 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
                 update_status('date_setup', 'error', f"Invalid date format: {target_date_str}. Use {DATE_FORMAT}.", percent=10)
                 return False
         else:
-            target_date = date.today()
+            target_date = date.today() # Default to today if no date is specified
         logger.info("Processing for target date: %s", target_date.strftime(DATE_FORMAT))
         update_status('date_setup', 'success', f"Target date: {target_date.strftime('%A, %B %d, %Y')}", percent=15)
 
+        # Ensure local download directory exists
         download_dir = config.config.get(('paths', 'download_dir'), 'downloads')
         os.makedirs(download_dir, exist_ok=True)
         
-        # Base path for download; website.login_and_download should append the correct extension.
+        # Prepare base save path for the newspaper file (extension will be added by download function)
+        # Example: if FILENAME_TEMPLATE is "{date}_newspaper.{format}", this becomes "downloads/YYYY-MM-DD_newspaper"
         base_save_path = os.path.join(download_dir, FILENAME_TEMPLATE.format(date=target_date.strftime(DATE_FORMAT), format='').rstrip('.'))
         
+        # Stage 3: Download Newspaper
+        # ---------------------------
         update_status('download', 'in_progress', 'Downloading newspaper...', percent=20, eta='approx. 1-2 min')
-        
         download_success, download_result = website.login_and_download(
-            base_url=config.config.get(('newspaper', 'url')),
+            base_url=config.config.get(('newspaper', 'url')), # Ensure these keys exist in your config
             username=config.config.get(('newspaper', 'username')),
             password=config.config.get(('newspaper', 'password')),
             save_path=base_save_path, 
@@ -216,28 +319,33 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
             error_msg = f"Download failed: {download_result}"
             update_status('download', 'error', error_msg, percent=20)
             logger.critical(error_msg)
-            # Consider re-enabling alert email if email_sender is robust
+            # Consider re-enabling alert email if email_sender is robust and configured.
             # email_sender.send_alert_email(subject='Newspaper Download Failed', message=error_msg, dry_run=dry_run)
             return False
 
-        newspaper_path = download_result 
+        # Successfully downloaded, now process the file
+        newspaper_path = download_result # This is the full path to the downloaded file
         newspaper_filename = os.path.basename(newspaper_path)
+        # Determine file format from extension (e.g., 'pdf', 'html')
         file_format = newspaper_filename.split('.')[-1].lower() if '.' in newspaper_filename else 'unknown'
 
         logger.info("Newspaper downloaded successfully: '%s' (format: %s)", newspaper_path, file_format)
         update_status('download', 'success', f"Newspaper downloaded: {newspaper_filename}", percent=40)
 
+        # Stage 4: Upload Newspaper to Cloud Storage
+        # -----------------------------------------
         update_status('upload', 'in_progress', 'Uploading to cloud storage...', percent=45, eta='approx. 30 sec')
         cloud_file_url = None
         if dry_run:
             logger.info("[Dry Run] Would upload '%s' to cloud storage as '%s'.", newspaper_path, newspaper_filename)
-            cloud_file_url = f"http://dry_run_cloud_storage_url/{newspaper_filename}" # Placeholder
+            cloud_file_url = f"http://dry_run_cloud_storage_url/{newspaper_filename}" # Placeholder for dry run
             update_status('upload', 'success', 'Upload (simulated) complete.', percent=60)
         else:
             try:
                 storage.upload_to_storage(newspaper_path, newspaper_filename)
-                cloud_file_url = storage.get_file_url(newspaper_filename)
+                cloud_file_url = storage.get_file_url(newspaper_filename) # Get the public URL
                 if not cloud_file_url:
+                    # This indicates an issue either with upload or URL retrieval logic in storage module
                     raise storage.ClientError("Failed to get cloud URL after upload (URL is None or empty).")
                 logger.info("Successfully uploaded '%s' to cloud storage. URL: %s", newspaper_filename, cloud_file_url)
                 update_status('upload', 'success', 'Upload complete!', percent=60)
@@ -246,32 +354,39 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
                 update_status('upload', 'error', f"Upload failed: {e}", percent=45)
                 return False
 
+        # Stage 5: Generate Thumbnail
+        # ---------------------------
         update_status('thumbnail', 'in_progress', 'Generating thumbnail...', percent=65, eta='approx. 20 sec')
-        thumbnail_actual_format = thumbnail.THUMBNAIL_FORMAT.lower() # e.g. 'jpeg' -> 'jpg' if needed
-        if thumbnail_actual_format == 'jpeg': thumbnail_actual_format = 'jpg' # common extension
+        # Determine thumbnail format (e.g., 'jpeg' from config might become 'jpg')
+        thumbnail_actual_format = thumbnail.THUMBNAIL_FORMAT.lower()
+        if thumbnail_actual_format == 'jpeg': thumbnail_actual_format = 'jpg' # Common practice for file extension
         
         thumbnail_output_filename = THUMBNAIL_FILENAME_TEMPLATE.format(date=target_date.strftime(DATE_FORMAT), format=thumbnail_actual_format)
-        thumbnail_output_path = os.path.join(download_dir, thumbnail_output_filename)
+        thumbnail_output_path = os.path.join(download_dir, thumbnail_output_filename) # Local path for generated thumbnail
         thumbnail_cloud_url = None
 
         if dry_run:
             logger.info("[Dry Run] Would generate thumbnail for '%s' at '%s'.", newspaper_path, thumbnail_output_path)
-            thumbnail_cloud_url = f"http://dry_run_cloud_storage_url/{thumbnail_output_filename}"
+            thumbnail_cloud_url = f"http://dry_run_cloud_storage_url/{thumbnail_output_filename}" # Placeholder for dry run
             update_status('thumbnail', 'success', 'Thumbnail generation (simulated) complete.', percent=75)
         else:
-            if not os.path.exists(newspaper_path):
+            if not os.path.exists(newspaper_path): # Check if the source newspaper file exists
                  logger.error("Cannot generate thumbnail, input file '%s' does not exist.", newspaper_path)
                  update_status('thumbnail', 'error', "Newspaper file missing for thumbnailing.", percent=65)
-            elif file_format not in ["pdf", "html"]:
+            elif file_format not in ["pdf", "html"]: # Check if format is supported for thumbnailing
                 logger.warning("Unsupported file format '%s' for thumbnail generation of '%s'. Skipping thumbnail.", file_format, newspaper_filename)
                 update_status('thumbnail', 'skipped', f"Unsupported format for thumbnail: {file_format}", percent=75)
             else:
+                # Attempt to generate the thumbnail
                 thumb_success = thumbnail.generate_thumbnail(
-                    input_path=newspaper_path, output_path=thumbnail_output_path, file_format=file_format
+                    input_path=newspaper_path,
+                    output_path=thumbnail_output_path,
+                    file_format=file_format # Pass the detected format of the newspaper
                 )
                 if thumb_success and os.path.exists(thumbnail_output_path):
                     logger.info("Thumbnail generated successfully: '%s'", thumbnail_output_path)
                     try:
+                        # Upload thumbnail to cloud storage
                         storage.upload_to_storage(thumbnail_output_path, thumbnail_output_filename)
                         thumbnail_cloud_url = storage.get_file_url(thumbnail_output_filename)
                         if not thumbnail_cloud_url:
@@ -281,10 +396,14 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
                     except Exception as e:
                         logger.exception("Failed to upload thumbnail '%s': %s", thumbnail_output_filename, e)
                         update_status('thumbnail', 'error', 'Thumbnail upload failed.', percent=75)
+                        # Continue without thumbnail_cloud_url, email will be sent without it
                 else:
                     logger.warning("Thumbnail generation failed for '%s'. Email will be sent without a thumbnail.", newspaper_filename)
                     update_status('thumbnail', 'error', 'Thumbnail generation failed.', percent=75)
+                    # Continue, email will be sent without thumbnail_cloud_url
         
+        # Stage 6: Prepare and Send Email
+        # -------------------------------
         update_status('email', 'in_progress', 'Preparing email...', percent=80, eta='approx. 30 sec')
         try:
             retention_days_for_links = config.config.get(('general', 'retention_days_for_email_links'), 7)
@@ -309,21 +428,25 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
             return False
 
         update_status('cleanup', 'in_progress', 'Cleaning up old newspapers from cloud storage...', percent=97)
-        cleanup_old_files_main(target_date, dry_run=dry_run)
+        cleanup_old_files_main(target_date, dry_run=dry_run) # Uses global RETENTION_DAYS from config
         update_status('cleanup', 'success', 'Cleanup process complete.', percent=99)
         
+        # Stage 8: Finalize
+        # -----------------
         update_status('complete', 'success', 'Newspaper processing complete!', percent=100)
         logger.info("Daily newspaper processing for %s completed successfully.", target_date.strftime(DATE_FORMAT))
         
+        # Optional: Log a message if the pipeline has been consistently successful
         if not dry_run: 
             if all(status['status'] == 'ready' for status in get_last_7_days_status()):
                 logger.info("Consistently successful for the past 7 days. Consider full automation if not already set up.")
         return True
 
-    except Exception as e: 
+    except Exception as e: # Catch-all for any unexpected errors during the pipeline
         final_error_msg = f"Main pipeline failed: {e}"
-        logger.exception(final_error_msg)
-        try: # Best effort to update status one last time
+        logger.exception(final_error_msg) # Log the full traceback
+        # Attempt to update the status file to reflect the pipeline error
+        try:
             with open(STATUS_FILE, 'r', encoding='utf-8') as f_current_status:
                 current_status_data = json.load(f_current_status)
             if current_status_data.get('status') != 'error': 

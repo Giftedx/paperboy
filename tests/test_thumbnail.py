@@ -245,6 +245,172 @@ class TestThumbnailGeneration(unittest.TestCase):
             self.assertTrue(result)
             mock_exists.assert_called_once_with("dummy.pdf")
 
+    # --- More PyMuPDF Path Failures ---
+    @patch('thumbnail.fitz.open')
+    def test_pymupdf_get_pixmap_fails(self, mock_fitz_open):
+        if not thumbnail.PYMUPDF_AVAILABLE or not thumbnail.PIL_AVAILABLE:
+            self.skipTest("PyMuPDF or Pillow not available.")
+        mock_doc = MagicMock()
+        mock_page = MagicMock()
+        mock_fitz_open.return_value = mock_doc
+        mock_doc.page_count = 1
+        mock_doc.load_page.return_value = mock_page
+        mock_page.get_pixmap.side_effect = Exception("Pixmap error")
+
+        result = thumbnail._create_thumbnail_pymupdf("d.pdf", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        mock_doc.close.assert_called_once()
+
+    @patch('thumbnail.fitz.open')
+    @patch('thumbnail.Image.frombytes', side_effect=Exception("PIL frombytes error"))
+    def test_pymupdf_pil_frombytes_fails(self, mock_frombytes, mock_fitz_open):
+        if not thumbnail.PYMUPDF_AVAILABLE or not thumbnail.PIL_AVAILABLE:
+            self.skipTest("PyMuPDF or Pillow not available.")
+        mock_doc = MagicMock()
+        mock_page = MagicMock()
+        mock_pixmap = MagicMock()
+        mock_fitz_open.return_value = mock_doc
+        mock_doc.page_count = 1
+        mock_doc.load_page.return_value = mock_page
+        mock_page.get_pixmap.return_value = mock_pixmap
+
+        result = thumbnail._create_thumbnail_pymupdf("d.pdf", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        mock_doc.close.assert_called_once()
+
+    @patch('thumbnail.fitz.open')
+    @patch('thumbnail.Image.frombytes')
+    def test_pymupdf_pil_save_fails(self, mock_frombytes, mock_fitz_open):
+        if not thumbnail.PYMUPDF_AVAILABLE or not thumbnail.PIL_AVAILABLE:
+            self.skipTest("PyMuPDF or Pillow not available.")
+        mock_doc = MagicMock()
+        mock_page = MagicMock()
+        mock_pixmap = MagicMock()
+        mock_fitz_open.return_value = mock_doc
+        mock_doc.page_count = 1
+        mock_doc.load_page.return_value = mock_page
+        mock_page.get_pixmap.return_value = mock_pixmap
+        mock_frombytes.return_value = self.mock_pil_image
+        self.mock_pil_image.save.side_effect = Exception("PIL save error")
+
+        result = thumbnail._create_thumbnail_pymupdf("d.pdf", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        mock_doc.close.assert_called_once()
+
+    @patch('thumbnail.PYMUPDF_AVAILABLE', True)
+    @patch('thumbnail.PIL_AVAILABLE', False)
+    @patch('thumbnail.fitz.open') # Mock to prevent actual file access
+    def test_generate_pdf_pymupdf_selected_pil_unavailable(self, mock_fitz_open):
+        # This tests the _create_thumbnail_pymupdf path specifically when PIL is False
+        # The main generate_thumbnail orchestrator might have a slightly different check order
+        mock_doc = MagicMock()
+        mock_page = MagicMock()
+        mock_pixmap = MagicMock() # Define mock_pixmap
+        mock_fitz_open.return_value = mock_doc
+        mock_doc.page_count = 1
+        mock_doc.load_page.return_value = mock_page
+        mock_page.get_pixmap.return_value = mock_pixmap # Ensure get_pixmap returns the mock
+
+        # Test the helper directly
+        result_helper = thumbnail._create_thumbnail_pymupdf("d.pdf", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result_helper)
+
+        # Test the main orchestrator to ensure it also fails as expected
+        with patch('os.path.exists', return_value=True):
+             result_main = thumbnail.generate_thumbnail("d.pdf", "o.jpg", "pdf")
+             self.assertFalse(result_main)
+
+
+    # --- More pdf2image Path Failures ---
+    @patch('thumbnail.convert_from_path', side_effect=thumbnail.PDFPageCountError("Page count error"))
+    def test_pdf2image_page_count_error(self, mock_convert_from_path):
+        if not thumbnail.PDF2IMAGE_AVAILABLE or not thumbnail.PIL_AVAILABLE:
+            self.skipTest("pdf2image or Pillow not available.")
+        result = thumbnail._create_thumbnail_pdf2image("d.pdf", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+
+    @patch('thumbnail.PDF2IMAGE_AVAILABLE', True)
+    @patch('thumbnail.PIL_AVAILABLE', False)
+    @patch('thumbnail.shutil.which', return_value=True) # Poppler available
+    @patch('thumbnail.convert_from_path') # Mock to prevent actual call
+    def test_generate_pdf_pdf2image_selected_pil_unavailable(self, mock_convert, mock_shutil):
+        # This tests the _create_thumbnail_pdf2image path specifically when PIL is False
+        # Assumes PYMUPDF_AVAILABLE is False for this path to be chosen by generate_thumbnail
+        with patch('thumbnail.PYMUPDF_AVAILABLE', False):
+            # Test the helper directly
+            # _create_thumbnail_pdf2image checks PIL_AVAILABLE after calling convert_from_path
+            mock_convert.return_value = [self.mock_pil_image] # Simulate images returned
+            result_helper = thumbnail._create_thumbnail_pdf2image("d.pdf", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+            self.assertFalse(result_helper)
+
+            # Test the main orchestrator
+            with patch('os.path.exists', return_value=True):
+                result_main = thumbnail.generate_thumbnail("d.pdf", "o.jpg", "pdf")
+                self.assertFalse(result_main)
+
+    # --- More Playwright HTML Path Failures ---
+    @patch('thumbnail.sync_playwright')
+    def test_html_playwright_page_goto_fails(self, mock_sync_playwright_func):
+        if not thumbnail.PIL_AVAILABLE: self.skipTest("PIL not available")
+        mock_playwright_cm = MagicMock()
+        mock_browser = MagicMock()
+        mock_page = MagicMock()
+        mock_sync_playwright_func.return_value = mock_playwright_cm
+        mock_playwright_cm.__enter__.return_value.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_page.goto.side_effect = Exception("Page load error")
+
+        with patch.dict(sys.modules, {'playwright.sync_api': MagicMock()}):
+            result = thumbnail._create_thumbnail_html_playwright("d.html", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        mock_browser.close.assert_called_once()
+
+    @patch('thumbnail.sync_playwright')
+    def test_html_playwright_screenshot_fails(self, mock_sync_playwright_func):
+        if not thumbnail.PIL_AVAILABLE: self.skipTest("PIL not available")
+        mock_playwright_cm = MagicMock()
+        mock_browser = MagicMock()
+        mock_page = MagicMock()
+        mock_sync_playwright_func.return_value = mock_playwright_cm
+        mock_playwright_cm.__enter__.return_value.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_page.screenshot.side_effect = Exception("Screenshot error")
+
+        with patch.dict(sys.modules, {'playwright.sync_api': MagicMock()}):
+            result = thumbnail._create_thumbnail_html_playwright("d.html", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        mock_browser.close.assert_called_once()
+
+    @patch('thumbnail.sync_playwright')
+    @patch('thumbnail.Image.open', side_effect=thumbnail.UnidentifiedImageError("Bad image data"))
+    def test_html_playwright_pil_open_fails(self, mock_pil_open, mock_sync_playwright_func):
+        if not thumbnail.PIL_AVAILABLE: self.skipTest("PIL not available")
+        mock_playwright_cm = MagicMock()
+        mock_browser = MagicMock()
+        mock_page = MagicMock()
+        mock_sync_playwright_func.return_value = mock_playwright_cm
+        mock_playwright_cm.__enter__.return_value.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_page.screenshot.return_value = b"fake_img_bytes"
+
+        with patch.dict(sys.modules, {'playwright.sync_api': MagicMock()}):
+            result = thumbnail._create_thumbnail_html_playwright("d.html", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        mock_browser.close.assert_called_once()
+
+    @patch('thumbnail.PIL_AVAILABLE', True) # Assume PIL is available for the orchestrator check
+    @patch.dict(sys.modules, {'playwright.sync_api': None}) # Simulate Playwright import error locally
+    def test_html_playwright_locally_unavailable(self):
+        # This test relies on the local import failing inside _create_thumbnail_html_playwright
+        # We mock sys.modules to ensure 'playwright.sync_api' is not found by that import
+        result = thumbnail._create_thumbnail_html_playwright("d.html", "o.jpg", self.test_width, self.test_height, self.test_format, self.test_quality)
+        self.assertFalse(result)
+        # Also test the main generate_thumbnail function
+        with patch('os.path.exists', return_value=True):
+            result_main = thumbnail.generate_thumbnail("d.html", "o.jpg", "html")
+            self.assertFalse(result_main)
+
+
 if __name__ == "__main__":
     logging.disable(logging.NOTSET) # Ensure all logs are enabled for direct test runs
     unittest.main()
