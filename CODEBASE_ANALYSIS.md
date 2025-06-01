@@ -110,6 +110,46 @@ This list prioritizes actions to address the findings of this codebase review.
 
 This concludes the analysis and prioritization section.
 
+## 3. Test Coverage Analysis and Recommendations
+
+While a comprehensive, line-by-line test coverage analysis has not been performed, a review of the `tests/` directory indicates the presence of unit tests for several modules (`test_config.py`, `test_email_sender.py`, `test_storage.py`, `test_thumbnail.py`, etc.). However, given the complexity and external dependencies of key components, there is significant opportunity to enhance test coverage and robustness.
+
+**Current Status:**
+*   Basic unit tests exist for some modules.
+*   Key modules with external interactions and complex logic likely have incomplete coverage.
+
+**Recommendations for Improvement:**
+
+To improve the reliability and maintainability of the codebase, the following areas should be prioritized for enhanced test coverage:
+
+### 3.1. Focus Areas for Enhanced Testing
+
+*   **`website.py` (Critical Priority):** This is the most fragile part of the application due to its reliance on external website structures. Comprehensive testing is crucial here.
+    *   **Actionable Steps:**
+        *   Implement tests that mock `requests.Session` to simulate various HTTP responses (successful login, incorrect credentials, site changes, network errors).
+        *   Use mocking for `playwright` interactions to simulate different page structures, element not found scenarios, and successful/failed download attempts.
+        *   Test various configurations of `DOWNLOAD_LINK_SELECTOR`.
+        *   Test error handling for unexpected website behavior.
+*   **`thumbnail.py` (High Priority):** Ensures reliable thumbnail generation across different input types and scenarios.
+    *   **Actionable Steps:**
+        *   Expand existing tests to cover all fallback mechanisms (PyMuPDF succeeding/failing, triggering `pdf2image`).
+        *   Test with corrupted or malformed PDF and HTML files to ensure graceful handling.
+        *   Verify correct output formats and image quality for different settings.
+        *   Mock Playwright for HTML thumbnail tests.
+*   **`gui_app.py` (Medium Priority):** Test the backend logic of the Flask application to ensure API endpoints and form processing are reliable.
+    *   **Actionable Steps:**
+        *   Use Flask's built-in test client to test routes (e.g., `/`, `/config`, `/run`, `/archive`, `/progress`, `/preview_data`).
+        *   Test form submissions for config updates and manual runs, including validation scenarios.
+        *   Mock interactions with other modules (`main.py`, `config.py`, `storage.py`) to isolate GUI logic testing.
+*   **`main.py` (Medium Priority):** Test the core orchestration logic and how it handles interactions and potential failures from dependent modules.
+    *   **Actionable Steps:**
+        *   Mock the core functions of `website.py`, `thumbnail.py`, `storage.py`, and `email_sender.py`.
+        *   Test the main execution flow, including error propagation and handling between steps.
+        *   Verify correct cleanup and resource management.
+
+### 3.2. Integrate Test Coverage Measurement
+*   **Recommendation:** Integrate a test coverage tool like `coverage.py`. Configure it to run with your test suite (e.g., via pytest or a separate command). This will provide quantitative data on which lines of code are executed by your tests, helping to identify areas lacking coverage. Aim to increase coverage over time, focusing on critical paths and error handling logic.
+
 ## 3. Recommendations for Future Work
 
 This section outlines further actions that could enhance the codebase, based on the analysis performed. These are generally of lower priority than the items addressed in Plan Steps 3 and 4 but would contribute to the project's robustness, maintainability, and feature set.
@@ -117,20 +157,6 @@ This section outlines further actions that could enhance the codebase, based on 
 ### 3.1. Enhance Test Coverage
 *   **Current Status:** The `tests/` directory exists, and some tests are present (e.g., `test_config.py`, `test_email_sender.py`, `test_storage.py`, `test_thumbnail.py`, etc.). However, a detailed review of test coverage for edge cases and complex logic within each module was not performed during this analysis phase.
 *   **Recommendations:**
-    *   **`website.py`:** This is a critical and complex module. Implement comprehensive tests, likely involving:
-        *   Mocking `requests.Session` and `playwright` interactions to simulate various website responses (successful login, failed login, different page structures, download success/failure).
-        *   Testing different selector configurations.
-    *   **`thumbnail.py`:** While some tests exist, expand to cover:
-        *   All fallback scenarios (PyMuPDF -> pdf2image).
-        *   Handling of corrupted or non-standard PDF/HTML files.
-        *   Different output formats and quality settings.
-    *   **`gui_app.py`:** Testing Flask applications can involve using the Flask test client. Focus on:
-        *   Backend logic of routes (e.g., form processing, API endpoints like `/progress`, `/preview_data`).
-        *   Authentication/authorization if any were to be added.
-        *   Interaction with `main.py` and other modules.
-    *   **`main.py`:** Test the main pipeline logic, possibly by mocking the core functions from other modules to verify orchestration flow and error handling.
-    *   **Coverage Analysis:** Integrate a tool like `coverage.py` to measure test coverage and identify untested code paths.
-
 ### 3.2. Refine Configuration Handling
 *   **Current Status:** `config.py` is robust. `config.yaml` is used for settings.
 *   **Recommendations:**

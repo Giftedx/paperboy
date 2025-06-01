@@ -5,14 +5,43 @@ Handles loading configuration from environment variables and YAML files,
 validates critical parameters, and provides a unified interface for
 accessing configuration values, logging a summary on startup.
 """
-
 import os
 import yaml
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path # Keep Path for potential future use, though not used in current logic
 from dotenv import load_dotenv
+import sys
 
 logger = logging.getLogger(__name__)
+
+def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
+    """
+    Configures logging for the application.
+    Sets up console and rotating file handlers with a standard format.
+    """
+    log_directory = Path(log_dir)
+    log_directory.mkdir(parents=True, exist_ok=True)
+    log_filepath = log_directory / log_file
+
+    # Define the log format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+
+    # File handler with daily rotation and 7-day retention
+    file_handler = TimedRotatingFileHandler(log_filepath, when="midnight", interval=1, backupCount=7)
+    file_handler.setFormatter(formatter)
+
+    # Get the root logger and set level and handlers
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
+
+    logger.info("Logging configured to level '%s', writing to '%s'.", logging.getLevelName(log_level), log_filepath)
 
 # Define critical configuration keys and their expected types/validation rules
 # Format: (('tuple', 'of', 'keys'), 'validation_rule')
@@ -269,3 +298,6 @@ config = Config()
 #         #    logger.info("Some service API key is set.")
 #     else:
 #         logger.error("Failed to load or validate configuration. Application might not run correctly.")
+
+# Set up logging immediately when config module is imported
+setup_logging()

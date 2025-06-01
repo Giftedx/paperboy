@@ -4,12 +4,10 @@ Main pipeline orchestrator for the newspaper downloader and emailer system.
 """
 
 import os
-import logging
 import json
 from datetime import date, timedelta, datetime
 import time
 
-# Import project modules
 import website
 import storage
 import email_sender
@@ -17,12 +15,7 @@ import config # Assuming config.py has been enhanced
 import thumbnail # Assuming thumbnail.py has been enhanced
 
 # Logging setup
-logger = logging.getLogger(__name__)
-if not logger.hasHandlers(): # Ensure basicConfig is only called if no handlers are set
-    logging.basicConfig(level=logging.INFO, 
-                        format='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-
-# Global constants to be updated from config after loading
+logger = config.get_logger(__name__) # Use standardized logger
 DATE_FORMAT = '%Y-%m-%d' 
 FILENAME_TEMPLATE = "{date}_newspaper.{format}" 
 THUMBNAIL_FILENAME_TEMPLATE = "{date}_thumbnail.{format}"
@@ -54,7 +47,7 @@ def update_status(step, status, message=None, percent=None, eta=None, explainer=
 def get_last_7_days_status():
     """Checks local download directory for papers to determine recent readiness."""
     logger.info("Checking status of downloads for the last 7 days.")
-    today = date.today()
+    today = datetime.now().date() # Use datetime.now().date() for consistency
     days_to_check = 7
     statuses = []
     
@@ -166,7 +159,7 @@ def cleanup_old_files_main(target_date: date, dry_run: bool):
 # --- Main Execution Logic ---
 def main(target_date_str: str | None = None, dry_run: bool = False, force_download: bool = False):
     """Main pipeline for downloading, storing, and preparing newspaper for email."""
-    global DATE_FORMAT, FILENAME_TEMPLATE, THUMBNAIL_FILENAME_TEMPLATE, RETENTION_DAYS # Allow update after config load
+    global DATE_FORMAT, FILENAME_TEMPLATE, THUMBNAIL_FILENAME_TEMPLATE, RETENTION_DAYS
 
     try:
         update_status('config_load', 'in_progress', 'Loading configuration...', percent=0)
@@ -190,7 +183,7 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
                 update_status('date_setup', 'error', f"Invalid date format: {target_date_str}. Use {DATE_FORMAT}.", percent=10)
                 return False
         else:
-            target_date = date.today()
+            target_date = datetime.now().date() # Use datetime.now().date()
         logger.info("Processing for target date: %s", target_date.strftime(DATE_FORMAT))
         update_status('date_setup', 'success', f"Target date: {target_date.strftime('%A, %B %d, %Y')}", percent=15)
 
@@ -336,14 +329,8 @@ if __name__ == "__main__":
     logger.info("Starting main.py directly for testing or manual execution.")
     
     # Attempt to load .env if present, for direct execution convenience
-    if os.path.exists(".env"):
-        load_dotenv(".env", verbose=True, override=True)
-        logger.info("Loaded .env file for direct main.py execution.")
-
-    # Ensure logging is configured if this script is run directly
-    if not logging.getLogger().hasHandlers():
-         logging.basicConfig(level=logging.DEBUG, # More verbose for direct run
-                             format='%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s')
+    # Loading .env and basicConfig moved to config.py setup
+    # The logger obtained via config.get_logger(__name__) will be correctly configured.
 
     # --- Configuration for direct execution ---
     # Allow overriding target_date, dry_run, force_download via environment variables for testing
@@ -352,7 +339,7 @@ if __name__ == "__main__":
     force_download_override = os.environ.get("MAIN_PY_FORCE_DOWNLOAD", "False").lower() == "true"
     
     # Use global DATE_FORMAT here, which will be updated by config.load() if main() is called.
-    # If main() isn't called (e.g. syntax error before), it remains the module default.
+    # If main() isn't called (e.g. syntax error before), it remains the module default, but config.load() is called first in main().
     effective_target_date_str = target_date_override if target_date_override else date.today().strftime(DATE_FORMAT)
     
     logger.info(f"Running main pipeline with: Target Date='{effective_target_date_str}', Dry Run={dry_run_override}, Force Download={force_download_override}")

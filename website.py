@@ -12,7 +12,6 @@ from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import config
-import time 
 
 # Playwright imports (optional dependency)
 try:
@@ -29,7 +28,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # --- Configuration from centralized config module ---
-WEBSITE_URL = config.config.get(('newspaper', 'url'))
 LOGIN_URL = config.config.get(('newspaper', 'login_url'), WEBSITE_URL)
 USERNAME = config.config.get(('newspaper', 'username'))
 PASSWORD = config.config.get(('newspaper', 'password'))
@@ -44,6 +42,8 @@ LOGIN_SUCCESS_SELECTOR = config.config.get(('newspaper', 'selectors', 'login_suc
 LOGIN_SUCCESS_URL_PATTERN = config.config.get(('newspaper', 'selectors', 'login_success_url'), '')
 
 # --- Helper Functions ---
+
+
 def _get_session_cookies(login_url, username, password):
     """Uses Playwright to log in and extract session cookies."""
     logger.info("Attempting to log in via Playwright to get session cookies.")
@@ -66,17 +66,17 @@ def _get_session_cookies(login_url, username, password):
             if page.locator(USERNAME_SELECTOR).count() > 0:
                 page.fill(USERNAME_SELECTOR, username)
             else:
-                logger.error("Username field not found with selector: %s", USERNAME_SELECTOR)
+                logger.error("Login failed: Username field not found with selector: %s", USERNAME_SELECTOR)
                 if browser: browser.close()
                 return None
-                
+
             if page.locator(PASSWORD_SELECTOR).count() > 0:
                 page.fill(PASSWORD_SELECTOR, password)
             else:
-                logger.error("Password field not found with selector: %s", PASSWORD_SELECTOR)
+                logger.error("Login failed: Password field not found with selector: %s", PASSWORD_SELECTOR)
                 if browser: browser.close()
                 return None
-                
+
             if page.locator(SUBMIT_BUTTON_SELECTOR).count() > 0:
                 page.click(SUBMIT_BUTTON_SELECTOR)
             else:
@@ -93,7 +93,7 @@ def _get_session_cookies(login_url, username, password):
                     logger.info("Login successful (based on element presence: %s).", LOGIN_SUCCESS_SELECTOR)
                 except PlaywrightTimeoutError:
                     logger.warning("Login success element not found: %s", LOGIN_SUCCESS_SELECTOR)
-            
+
             if not login_success and LOGIN_SUCCESS_URL_PATTERN:
                 try:
                     logger.debug("Waiting for login success URL pattern: %s", LOGIN_SUCCESS_URL_PATTERN)
@@ -102,7 +102,7 @@ def _get_session_cookies(login_url, username, password):
                     logger.info("Login successful (based on URL pattern: %s).", LOGIN_SUCCESS_URL_PATTERN)
                 except PlaywrightTimeoutError:
                     logger.warning("Login success URL pattern not matched: %s", LOGIN_SUCCESS_URL_PATTERN)
-                    
+
             if not login_success:
                 logger.debug("Using fallback method: waiting for network idle state")
                 page.wait_for_load_state('networkidle')
@@ -112,7 +112,7 @@ def _get_session_cookies(login_url, username, password):
                     logger.error("Login error detected: %s", error_text)
                     if browser: browser.close()
                     return None
-                login_success = True
+                login_success = True # Assume success if no errors and network is idle
                 logger.info("Login appears successful (based on network idle state and no error messages).")
             
             if not login_success:
@@ -121,9 +121,10 @@ def _get_session_cookies(login_url, username, password):
                 return None
 
             cookies = page.context.cookies()
+            logger.debug("Extracted cookies: %s", cookies)
             logger.info("Successfully extracted %d cookies.", len(cookies))
     except PlaywrightTimeoutError:
-        logger.error("Playwright timed out during login process. Check selectors and network conditions.")
+        logger.error("Playwright timed out during login process. Check selectors, URL, and network conditions.")
     except PlaywrightError as e: 
         logger.error("A Playwright error occurred during login: %s", e)
     except Exception as e: 
@@ -143,14 +144,14 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
     
     if dry_run:
         logger.info("[Dry Run] Would attempt fallback download using Playwright from: %s", download_url)
-        return True, "pdf"
+        return True, "pdf" # Assume PDF for dry run format
         
     logger.info("Attempting fallback download using Playwright from: %s", download_url)
     browser = None
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            context = browser.new_context()
+            context = browser.new_context(accept_downloads=True) # Ensure context accepts downloads
             
             if cookies:
                 formatted_cookies = []
@@ -159,17 +160,18 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
                         'name': cookie_item.get('name'),
                         'value': cookie_item.get('value'),
                         'domain': cookie_item.get('domain'),
-                        'path': cookie_item.get('path', '/'), 
-                        'expires': cookie_item.get('expires', -1), 
+                        'path': cookie_item.get('path', '/'),
+                        'expires': cookie_item.get('expires', -1),
                         'httpOnly': cookie_item.get('httpOnly', False),
                         'secure': cookie_item.get('secure', False),
-                        'sameSite': cookie_item.get('sameSite', 'Lax') 
+                        'sameSite': cookie_item.get('sameSite', 'Lax')
                     }
                     formatted_cookies.append({k:v for k,v in pw_cookie.items() if v is not None})
                 context.add_cookies(formatted_cookies)
                     
             page = context.new_page()
             download_folder = os.path.dirname(save_path)
+            # Playwright handles download path, but ensure parent dir exists for final move/save_as
             os.makedirs(download_folder, exist_ok=True)
             page.context.set_default_timeout(60000)
             
@@ -177,14 +179,14 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
             with page.expect_download() as download_info:
                 logger.debug("Navigating to download URL: %s", download_url)
                 response = page.goto(download_url, wait_until='networkidle')
-
-            if not response: 
+                
+            if not response or response.status >= 400:
+                status_code = response.status if response else 'N/A'
                 logger.error("Failed to navigate to download URL: %s", download_url)
                 if browser: browser.close()
-                return False, "Navigation failed"
+                return False, f"Navigation failed or status error: {status_code}"
             
-            if response.status >= 400: 
-                logger.error("Received error status code %d for URL %s", response.status, download_url)
+            if download is None:
                 if browser: browser.close()
                 return False, f"Error status: {response.status}"
 
@@ -192,7 +194,7 @@ def _download_with_playwright(download_url, save_path, cookies, dry_run=False):
             downloaded_file_format = download.suggested_filename.split('.')[-1].lower()
             if downloaded_file_format not in ['pdf', 'html']:
                 downloaded_file_format = 'pdf' 
-            
+
             save_path_with_ext = f"{save_path}.{downloaded_file_format}"
             download.save_as(save_path_with_ext)
             logger.info("Playwright successfully downloaded file to: %s", save_path_with_ext)
@@ -448,5 +450,5 @@ if __name__ == '__main__':
             else:
                  logger.warning("File path %s does not exist, check file_info and save_path logic.", final_path)
         else:
-            logger.error("Standalone test failed. Reason: %s", file_info)
+            logger.error("Standalone test failed. Reason: %s", file_info) # file_info contains the error message
     logger.info("--- End website.py standalone test ---")

@@ -61,8 +61,8 @@ except ImportError:
 # Playwright (imported locally in the function that uses it)
 
 # Configure logging
-logger = logging.getLogger(__name__)
-
+# Moved logging configuration to config.py's setup_logging
+logger = logging.getLogger(__name__) 
 # Constants
 THUMBNAIL_WIDTH = 200
 THUMBNAIL_HEIGHT = 200
@@ -72,7 +72,7 @@ THUMBNAIL_QUALITY = 85 # Default JPEG quality
 def _create_thumbnail_pymupdf(input_path, output_path, width, height, fmt, quality):
     """Creates a thumbnail from the first page of a PDF file using PyMuPDF."""
     logger.info("Attempting to create thumbnail for '%s' using PyMuPDF.", input_path)
-    doc = None
+    doc = None # Initialize doc to None
     try:
         doc = fitz.open(input_path)
         if doc.page_count <= 0:
@@ -267,7 +267,8 @@ def generate_thumbnail(input_path, output_path, file_format="pdf", dry_run=False
         return False
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # Basic logging setup for standalone execution
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s') 
     
     dummy_pdf_path = "dummy_test.pdf"
     dummy_html_path = "dummy_test.html"
