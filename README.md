@@ -16,7 +16,28 @@ A GitHub Actions-powered solution that automatically downloads your daily newspa
   - Fallback mechanisms for JavaScript-heavy websites (Playwright)
   - Multiple thumbnail generation options (PyMuPDF, pdf2image)
   - Error handling and detailed logging
-  - A web-based GUI is also available for managing and monitoring the application (see `gui_app.py`). It includes features for manual runs, archive management, configuration editing, and a basic scheduler. The GUI also includes a basic built-in scheduler, offering an alternative to system-level task schedulers for managing automated runs.
+  - A web-based GUI is also available for managing and monitoring the application (see `gui_app.py`). It includes features for manual runs, archive management, configuration editing, and a basic scheduler. The GUI includes a basic built-in scheduler, suitable for testing or simple scenarios. For reliable production use, system-level schedulers (like cron on Linux/macOS or Task Scheduler on Windows, as detailed in `LOCAL_SETUP.md`) are recommended.
+
+## ⚙️ Understanding Configuration
+
+This system uses two primary configuration files:
+
+- **`config.yaml`**: For general settings, newspaper-specific configurations (like selectors for login or download links), email templates, and storage options.
+- **`.env`**: For sensitive information like API keys, usernames, and passwords.
+
+**Default Locations:**
+
+By default, the application looks for `config.yaml` and `.env` in the project root directory.
+
+**Overriding Configuration Paths:**
+
+You can specify alternative locations for these files using environment variables:
+- `NEWSPAPER_CONFIG`: Set this to the full path of your `config.yaml` file.
+- `NEWSPAPER_ENV`: Set this to the full path of your `.env` file.
+
+**Environment Variable Precedence:**
+
+Settings provided via environment variables (e.g., those set as GitHub Actions secrets) will **override** any corresponding values found in `config.yaml` or `.env`. This is particularly useful for production deployments or when using CI/CD systems like GitHub Actions, where secrets are managed securely.
 
 ## 🛠️ Setup Instructions
 
