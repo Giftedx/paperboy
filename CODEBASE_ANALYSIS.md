@@ -146,6 +146,12 @@ To improve the reliability and maintainability of the codebase, the following ar
         *   Mock the core functions of `website.py`, `thumbnail.py`, `storage.py`, and `email_sender.py`.
         *   Test the main execution flow, including error propagation and handling between steps.
         *   Verify correct cleanup and resource management.
+*   **`email_sender.py` (Medium Priority):** Ensure reliable email dispatch via different configured methods (SMTP, SendGrid).
+    *   **Actionable Steps:**
+        *   Expand `test_email_sender.py` to robustly mock `smtplib.SMTP` and `sendgrid.SendGridAPIClient` interactions.
+        *   Test scenarios for successful email sending, authentication failures, API errors (for SendGrid), and network issues for both SMTP and SendGrid.
+        *   Verify correct handling of different email configurations (e.g., HTML vs. plain text, attachments).
+        *   Test the templating logic if complex templates are used within `email_sender.py` itself.
 
 ### 3.2. Integrate Test Coverage Measurement
 *   **Recommendation:** Integrate a test coverage tool like `coverage.py`. Configure it to run with your test suite (e.g., via pytest or a separate command). This will provide quantitative data on which lines of code are executed by your tests, helping to identify areas lacking coverage. Aim to increase coverage over time, focusing on critical paths and error handling logic.

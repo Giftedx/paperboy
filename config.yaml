@@ -1,44 +1,116 @@
 # Example configuration for Newspaper Emailer System
+# This file contains settings for the application.
+# Sensitive credentials (like passwords, API keys) should ideally be set via environment variables
+# or placed in a separate .env file, which is loaded by the application.
+# Environment variables will override values set in this file.
+
 newspaper:
+  # URL of the newspaper's login page or main page if no login is required.
   url: "https://example.com/login"
+  # Username for the newspaper website.
+  # For security, consider setting via NEWSPAPER_USERNAME environment variable or in .env
   username: "your_username"
+  # Password for the newspaper website.
+  # For security, consider setting via NEWSPAPER_PASSWORD environment variable or in .env
   password: "your_password"
+
+  # CSS selectors used to navigate the newspaper website and find elements.
   selectors:
+    # Selector for the download link(s) of the newspaper (e.g., PDF, HTML).
+    # This can be a comma-separated list for multiple possible selectors.
     download_link: "a[href$='.pdf'], a[href$='.html']"
+    # Selector for the username input field on the login page.
     username: "#username"
+    # Selector for the password input field on the login page.
     password: "#password"
+    # Selector for the login submission button.
     submit: "#login-btn"
-  login_url: "https://example.com/login"
-  user_agent: "Mozilla/5.0"
+
+  # Specific URL for the login page if different from the main 'url'.
+  # If not set, 'url' will be used for login attempts.
+  login_url: "https://example.com/login" # Optional: only if login page is different from newspaper.url
+
+  # User-Agent string to use for HTTP requests. Helps mimic a real browser.
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 
 storage:
-  provider: "r2" # or "s3"
-  endpoint_url: "https://<your-r2-endpoint>"
+  # Storage provider for downloaded newspapers. Supported: "r2" (Cloudflare R2), "s3" (AWS S3).
+  provider: "r2"
+  # Endpoint URL for the S3-compatible storage (required for R2, MinIO, etc.).
+  # For AWS S3, this is typically not needed if using the default AWS endpoint.
+  # For security, consider setting via STORAGE_ENDPOINT_URL environment variable or in .env
+  endpoint_url: "https://<your-r2-account-id>.r2.cloudflarestorage.com"
+  # Access Key ID for the storage provider.
+  # For security, consider setting via STORAGE_ACCESS_KEY_ID environment variable or in .env
   access_key_id: "your-access-key-id"
+  # Secret Access Key for the storage provider.
+  # For security, consider setting via STORAGE_SECRET_ACCESS_KEY environment variable or in .env
   secret_access_key: "your-secret-access-key"
+  # Region for the storage provider (e.g., "us-east-1" for AWS S3).
+  # For R2, "auto" is typically used.
   region: "auto"
+  # Name of the bucket to store newspapers in.
   bucket: "newspaper-storage"
 
 general:
+  # Number of days to retain downloaded newspapers in storage. Older files may be deleted.
   retention_days: 7
-  date_format: "%Y-%m-%d"
+  # Date format string (strftime format) used for display purposes (e.g., in email subjects, filenames).
+  date_format: "%Y-%m-%d" # Example: 2023-10-27
 
 email:
+  # Email address to send notifications from.
   sender: "sender@example.com"
+  # List of email addresses to send the newspaper to.
   recipients:
     - "recipient1@example.com"
     - "recipient2@example.com"
+  # Template for the email subject. '{{ date }}' will be replaced with the formatted current date.
   subject_template: "Your Daily Newspaper - {{ date }}"
+  # Filename of the HTML email template to use. Path is relative to 'paths.template_dir'.
   template: "email_template.html"
-  delivery_method: "smtp" # or "sendgrid"
+  # Method for email delivery. Supported: "smtp", "sendgrid".
+  delivery_method: "smtp"
+  # SMTP server hostname (if using delivery_method: "smtp").
+  # For security, consider setting via EMAIL_SMTP_HOST environment variable or in .env
   smtp_host: "smtp.example.com"
+  # SMTP server port (if using delivery_method: "smtp"). Common ports: 587 (TLS), 465 (SSL), 25 (unencrypted).
   smtp_port: 587
+  # Username for SMTP authentication (if using delivery_method: "smtp").
+  # For security, consider setting via EMAIL_SMTP_USER environment variable or in .env
   smtp_user: "smtp_user@example.com"
+  # Password for SMTP authentication (if using delivery_method: "smtp").
+  # For security, consider setting via EMAIL_SMTP_PASS environment variable or in .env
   smtp_pass: "your-smtp-password"
+  # Whether to use TLS for SMTP. 1 for true (STARTTLS), 0 for false.
+  # If smtp_port is 465 (SSL), TLS is often implicitly handled by the library, consult your provider.
   smtp_tls: 1
+  # API Key for SendGrid (if using delivery_method: "sendgrid").
+  # For security, consider setting via EMAIL_SENDGRID_API_KEY environment variable or in .env
   sendgrid_api_key: "your-sendgrid-api-key"
+  # Email address to send error alerts or important notifications to (e.g., admin).
   alert_recipient: "admin@example.com"
 
 paths:
+  # Directory where newspapers are temporarily downloaded before uploading to storage.
+  # Path is relative to the project root.
   download_dir: "downloads"
+  # Directory where email templates and other template files are stored.
+  # Path is relative to the project root.
   template_dir: "templates"
+
+# It is recommended to use environment variables for sensitive data.
+# For example, you can create a .env file in the project root:
+#
+# NEWSPAPER_USERNAME="your_actual_username"
+# NEWSPAPER_PASSWORD="your_actual_password"
+# STORAGE_ENDPOINT_URL="https://<your-r2-account-id>.r2.cloudflarestorage.com"
+# STORAGE_ACCESS_KEY_ID="your_actual_access_key"
+# STORAGE_SECRET_ACCESS_KEY="your_actual_secret_key"
+# EMAIL_SMTP_HOST="your_smtp_server"
+# EMAIL_SMTP_USER="your_smtp_username"
+# EMAIL_SMTP_PASS="your_smtp_password"
+# EMAIL_SENDGRID_API_KEY="your_sendgrid_key"
+#
+# The application will load these values, and they will override any corresponding values in this config.yaml.
+# You can also set these environment variables directly in your deployment environment.

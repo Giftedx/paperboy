@@ -175,4 +175,5 @@ This project is available under the MIT License - see the LICENSE file for detai
 - Ensure your automation complies with the Terms of Service of your newspaper subscription
 - Keep your repository private to protect your credentials
 - GitHub Actions provides 2,000 free minutes per month, which is more than sufficient for this automation
-- Cloud storage and email services are used within their free tiers 
+- Cloud storage and email services are used within their free tiers
+<!-- test comment -->
