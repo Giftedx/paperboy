@@ -78,6 +78,7 @@ class TestWebsite(unittest.TestCase):
         self.patch_logger_warning = patch('website.logger.warning')
         self.patch_logger_error = patch('website.logger.error')
         self.patch_logger_exception = patch('website.logger.exception')
+        self.patch_time_sleep = patch('time.sleep', return_value=None) # Mock time.sleep
 
 
         self.mock_os_makedirs = self.patch_os_makedirs.start()
@@ -92,6 +93,7 @@ class TestWebsite(unittest.TestCase):
         self.mock_logger_warning = self.patch_logger_warning.start()
         self.mock_logger_error = self.patch_logger_error.start()
         self.mock_logger_exception = self.patch_logger_exception.start()
+        self.mock_time_sleep = self.patch_time_sleep.start()
 
         # Patch config.config.get used within the website module
         self.patch_config_get_in_website = patch.object(website.config.config, 'get', side_effect=mock_config_get_side_effect)
@@ -244,6 +246,171 @@ class TestWebsite(unittest.TestCase):
         self.mock_beautifulsoup.assert_called_once()
         self.mock_playwright_download.assert_called_once()
         # File opening for saving is handled inside _download_with_playwright, which is mocked.
+
+    def _test_login_and_download_http_error_fallback(self, status_code, expected_fallback_call_count=1):
+        self.mock_os_path_exists.return_value = False
+        self.mock_get_session_cookies.return_value = [{'name': 'session', 'value': 'dummy'}]
+
+        # Mock initial requests.get to return an HTTP error
+        mock_http_error_response = MagicMock()
+        mock_http_error_response.status_code = status_code
+        mock_http_error_response.raise_for_status.side_effect = requests.exceptions.HTTPError(f"{status_code} Error")
+
+        # Mock subsequent scraping attempt (page fetch)
+        mock_scrape_page_response = MagicMock()
+        mock_scrape_page_response.status_code = 200
+        mock_scrape_page_response.content = b"<html>No link here for scraping</html>" # Ensure scraping finds no link
+
+        self.mock_requests_session_get.side_effect = [
+            mock_http_error_response,       # Initial direct download attempt (fails with HTTPError)
+            mock_scrape_page_response,      # Page fetch for scraping
+            # Add another RequestException if scraping itself tries to download and fails, leading to playwright
+            RequestException("Scraping download attempt failed")
+        ]
+        self.mock_beautifulsoup.return_value.select_one.return_value = None # No link found by scraping
+
+        # Playwright is the final fallback
+        playwright_final_path = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "playwright_file.html")
+        self.mock_playwright_download.return_value = (True, "html") # Playwright succeeds
+
+        target_date_str = f'2023-01-1{status_code % 10}' # Unique date for each test
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"{target_date_str}_newspaper")
+        expected_final_path = save_path_base + ".html"
+
+        success, result_path = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(result_path, expected_final_path)
+        # Called for: initial attempt (HTTP error), page fetch for scraping, (optionally link download from scraping - mocked to fail)
+        self.assertEqual(self.mock_requests_session_get.call_count, 3 if MOCK_CONFIG_DATA['newspaper']['selectors']['download_link_css_selectors'] else 2)
+        self.mock_beautifulsoup.assert_called_once()
+        self.mock_playwright_download.assert_called_once()
+        self.mock_logger_warning.assert_any_call(
+            "Initial requests.get failed for %s: %s. Attempting to scrape for a direct link.",
+            unittest.mock.ANY, # URL
+            unittest.mock.ANY  # Original HTTPError
+        )
+
+    def test_login_and_download_http_401_fallback(self):
+        self._test_login_and_download_http_error_fallback(401)
+
+    def test_login_and_download_http_403_fallback(self):
+        self._test_login_and_download_http_error_fallback(403)
+
+    def test_login_and_download_http_404_fallback(self):
+        self._test_login_and_download_http_error_fallback(404)
+
+    def test_login_and_download_http_500_fallback(self):
+        self._test_login_and_download_http_error_fallback(500)
+
+    def _test_login_and_download_requests_exception_fallback(self, exception_to_raise, is_timeout=False):
+        self.mock_os_path_exists.return_value = False
+        self.mock_get_session_cookies.return_value = [{'name': 'session', 'value': 'dummy'}]
+
+        # Mock initial requests.get to raise the specified exception
+        # Mock subsequent scraping attempt (page fetch)
+        mock_scrape_page_response = MagicMock()
+        mock_scrape_page_response.status_code = 200
+        mock_scrape_page_response.content = b"<html>No link here for scraping either</html>"
+
+        self.mock_requests_session_get.side_effect = [
+            exception_to_raise,             # Initial direct download attempt (fails with specific exception)
+            mock_scrape_page_response,      # Page fetch for scraping
+            RequestException("Scraping download attempt failed") # If scraping tries to download
+        ]
+        self.mock_beautifulsoup.return_value.select_one.return_value = None # No link found by scraping
+
+        playwright_final_path = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "playwright_file.pdf")
+        self.mock_playwright_download.return_value = (True, "pdf") # Playwright succeeds
+
+        target_date_str = f'2023-01-2{hash(exception_to_raise.__class__.__name__) % 10}' # Unique date
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"{target_date_str}_newspaper")
+        expected_final_path = save_path_base + ".pdf"
+
+        success, result_path = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(result_path, expected_final_path)
+        # Called for: initial attempt (exception), page fetch for scraping, (optionally link download from scraping - mocked to fail)
+        self.assertEqual(self.mock_requests_session_get.call_count, 3 if MOCK_CONFIG_DATA['newspaper']['selectors']['download_link_css_selectors'] else 2)
+
+        self.mock_beautifulsoup.assert_called_once()
+        self.mock_playwright_download.assert_called_once()
+
+        if is_timeout:
+            self.mock_logger_warning.assert_any_call(
+                "Request timed out (Attempt %d/%d). Retrying if possible...", 1, 3 # Max retries is 3
+            )
+        else: # For other RequestException like ConnectionError
+             self.mock_logger_warning.assert_any_call(
+                "Initial requests.get failed for %s: %s. Attempting to scrape for a direct link.",
+                unittest.mock.ANY, # URL
+                unittest.mock.ANY  # Original Exception
+            )
+
+
+    def test_login_and_download_requests_timeout_fallback(self):
+        # The function has its own retry loop for Timeout. This test ensures that if all retries fail,
+        # it then proceeds to scraping and playwright.
+        # To test this, mock_requests_session_get should raise Timeout for all direct attempts.
+        num_direct_attempts = 3 # From website.py logic
+
+        self.mock_os_path_exists.return_value = False
+        self.mock_get_session_cookies.return_value = [{'name': 'session', 'value': 'dummy'}]
+
+        mock_scrape_page_response = MagicMock()
+        mock_scrape_page_response.status_code = 200
+        mock_scrape_page_response.content = b"<html>No link here for scraping timeout</html>"
+
+        # All direct attempts timeout, then scraping page fetch, then scraping download attempt fails
+        effects = [requests.exceptions.Timeout("Timeout")] * num_direct_attempts + \
+                  [mock_scrape_page_response] + \
+                  [RequestException("Scraping download attempt failed (after timeout)")]
+        self.mock_requests_session_get.side_effect = effects
+
+        self.mock_beautifulsoup.return_value.select_one.return_value = None
+        self.mock_playwright_download.return_value = (True, "pdf")
+
+        target_date_str = '2023-01-30'
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"{target_date_str}_newspaper")
+        expected_final_path = save_path_base + ".pdf"
+
+        success, result_path = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+        self.assertTrue(success)
+        self.assertEqual(result_path, expected_final_path)
+        self.assertEqual(self.mock_requests_session_get.call_count, num_direct_attempts + 2) # 3 timeouts + 1 scrape page + 1 scrape download
+        self.mock_beautifulsoup.assert_called_once()
+        self.mock_playwright_download.assert_called_once()
+        # Check that all timeout warnings were logged
+        for i in range(num_direct_attempts):
+            self.mock_logger_warning.assert_any_call(
+                "Request timed out (Attempt %d/%d). Retrying if possible...", i + 1, num_direct_attempts
+            )
+        # Check the final error log after all retries for timeout
+        self.mock_logger_error.assert_any_call(
+            "Download failed after %d attempts due to timeout from %s", num_direct_attempts, unittest.mock.ANY
+        )
+        # Check that scraping was attempted after timeouts
+        self.mock_logger_warning.assert_any_call(
+            "Initial requests.get failed for %s: %s. Attempting to scrape for a direct link.",
+            unittest.mock.ANY, "Request timed out repeatedly" # This is the message passed after timeout retries
+        )
+
+
+    def test_login_and_download_requests_connection_error_fallback(self):
+        self._test_login_and_download_requests_exception_fallback(
+            requests.exceptions.ConnectionError("Connection failed")
+        )
+
 
     def test_login_and_download_all_fail(self):
         self.mock_os_path_exists.return_value = False
@@ -504,58 +671,146 @@ class TestWebsite(unittest.TestCase):
         # Or, the prompt means the final "if not login_success:" check, which is hard to reach.
 
         # Test the behavior when login success selectors fail but no explicit error messages are found.
-        self._assert_login_behavior(MOCK_CONFIG_DATA)
+        # self._assert_login_behavior(MOCK_CONFIG_DATA) # This helper is being removed.
 
-def _assert_login_behavior(self, config_data):
-    """Helper function to assert login behavior based on the provided configuration."""
-    if config_data['newspaper']['selectors']['login_success'] or \
-       config_data['newspaper']['selectors'].get('login_success_url', ''):
-        # If any verification method is configured
+        # The core logic previously in _assert_login_behavior is now directly in this test.
+        expected_cookies_after_fallback = [{'name': 'fallback_session', 'value': 'fallback_value'}]
+        mock_page.context.cookies.return_value = expected_cookies_after_fallback # Cookies found via network idle
+
+        login_url = MOCK_CONFIG_DATA['newspaper']['login_url'] # Use configured login_url
+        username = MOCK_CONFIG_DATA['newspaper']['username']
+        password = MOCK_CONFIG_DATA['newspaper']['password']
+
+        returned_cookies = website._get_session_cookies(login_url, username, password)
+        self.assertEqual(returned_cookies, expected_cookies_after_fallback)
+
+        # Assertions for this specific scenario (selectors fail, no page errors, network idle "success")
         self.mock_logger_warning.assert_any_call(
-            "Login success element not found: %s", config_data['newspaper']['selectors']['login_success']
+            "Login success element not found: %s", MOCK_CONFIG_DATA['newspaper']['selectors']['login_success']
         )
-        self.mock_logger_warning.assert_any_call(
-            "Login success URL pattern not matched: %s", config_data['newspaper']['selectors'].get('login_success_url', '')
+        # Ensure the pattern is actually configured before asserting it was checked and failed
+        if MOCK_CONFIG_DATA['newspaper']['selectors'].get('login_success_url_pattern', ''): # Default is ''
+            self.mock_logger_warning.assert_any_call(
+                "Login success URL pattern not matched: %s", MOCK_CONFIG_DATA['newspaper']['selectors']['login_success_url_pattern']
+            )
+        self.mock_logger_info.assert_any_call(
+            "Login appears successful (based on network idle state and no error messages)."
         )
-    self.mock_logger_info.assert_any_call(
-        "Login appears successful (based on network idle state and no error messages)."
-    )
-        # For now, let's assume the test wants to check what happens if cookies are None after this.
-        mock_page.context.cookies.return_value = None # Simulate no cookies found even after apparent success
+        mock_browser.close.assert_called_once()
 
-        returned_cookies = website._get_session_cookies("http://dummy/login", "user", "pass")
-        self.assertIsNone(returned_cookies) # This will now pass due to the above line.
-                                           # The function's final "if not login_success" is not hit here,
-                                           # rather it's the cookies = page.context.cookies() followed by returning cookies.
-                                           # If cookies is None, it returns None.
+    @patch('website.sync_playwright')
+    @patch('website.PlaywrightTimeoutError', Exception)
+    def test_get_session_cookies_login_success_selector_fails_url_pattern_succeeds(self, mock_sync_playwright_func):
+        mock_page = MagicMock()
+        mock_field_locator = MagicMock()
+        mock_field_locator.count.return_value = 1
 
+        # Simulate error messages not found
+        mock_error_locator = MagicMock()
+        mock_error_locator.count.return_value = 0
+
+        def locator_side_effect(selector_str):
+            if selector_str == '.login-error, .error-message, .alert-danger':
+                return mock_error_locator
+            return mock_field_locator
+        mock_page.locator.side_effect = locator_side_effect
+
+        # LOGIN_SUCCESS_SELECTOR fails
+        mock_page.wait_for_selector.side_effect = website.PlaywrightTimeoutError("Timeout for success selector")
+        # LOGIN_SUCCESS_URL_PATTERN succeeds
+        mock_page.wait_for_url.return_value = None # Successful wait, no exception
+
+        mock_browser = MagicMock()
+        mock_browser.new_page.return_value = mock_page
+        mock_playwright_instance = MagicMock()
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_sync_playwright_cm = MagicMock()
+        mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+        mock_sync_playwright_func.return_value = mock_sync_playwright_cm
+
+        expected_cookies = [{'name': 'url_pattern_session', 'value': 'url_pattern_ok'}]
+        mock_page.context.cookies.return_value = expected_cookies
+
+        login_url = MOCK_CONFIG_DATA['newspaper']['login_url']
+        username = MOCK_CONFIG_DATA['newspaper']['username']
+        password = MOCK_CONFIG_DATA['newspaper']['password']
+
+        # Ensure LOGIN_SUCCESS_URL_PATTERN is configured for this test
+        original_url_pattern = MOCK_CONFIG_DATA['newspaper']['selectors'].get('login_success_url_pattern')
+        MOCK_CONFIG_DATA['newspaper']['selectors']['login_success_url_pattern'] = "**/home"
+
+        returned_cookies = website._get_session_cookies(login_url, username, password)
+
+        MOCK_CONFIG_DATA['newspaper']['selectors']['login_success_url_pattern'] = original_url_pattern # Restore
+
+        self.assertEqual(returned_cookies, expected_cookies)
+        self.mock_logger_warning.assert_any_call("Login success element not found: %s", MOCK_CONFIG_DATA['newspaper']['selectors']['login_success'])
+        self.mock_logger_info.assert_any_call("Login successful (based on URL pattern: %s).", "**/home")
+        mock_page.wait_for_selector.assert_called_once_with(MOCK_CONFIG_DATA['newspaper']['selectors']['login_success'], timeout=30000)
+        mock_page.wait_for_url.assert_called_once_with("**/home", timeout=30000)
+        mock_browser.close.assert_called_once()
+
+    @patch('website.sync_playwright')
+    @patch('website.PlaywrightTimeoutError', Exception) # Not strictly needed here as success is mocked
+    def test_get_session_cookies_login_success_selector_succeeds_url_pattern_ignored(self, mock_sync_playwright_func):
+        mock_page = MagicMock()
+        mock_field_locator = MagicMock()
+        mock_field_locator.count.return_value = 1
+        mock_page.locator.return_value = mock_field_locator # For form fields
+
+        # LOGIN_SUCCESS_SELECTOR succeeds
+        mock_page.wait_for_selector.return_value = None # Successful wait
+
+        mock_browser = MagicMock()
+        mock_browser.new_page.return_value = mock_page
+        mock_playwright_instance = MagicMock()
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_sync_playwright_cm = MagicMock()
+        mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+        mock_sync_playwright_func.return_value = mock_sync_playwright_cm
+
+        expected_cookies = [{'name': 'selector_session', 'value': 'selector_ok'}]
+        mock_page.context.cookies.return_value = expected_cookies
+
+        login_url = MOCK_CONFIG_DATA['newspaper']['login_url']
+        username = MOCK_CONFIG_DATA['newspaper']['username']
+        password = MOCK_CONFIG_DATA['newspaper']['password']
+
+        returned_cookies = website._get_session_cookies(login_url, username, password)
+
+        self.assertEqual(returned_cookies, expected_cookies)
+        self.mock_logger_info.assert_any_call("Login successful (based on element presence: %s).", MOCK_CONFIG_DATA['newspaper']['selectors']['login_success'])
+        mock_page.wait_for_selector.assert_called_once_with(MOCK_CONFIG_DATA['newspaper']['selectors']['login_success'], timeout=30000)
+        mock_page.wait_for_url.assert_not_called() # URL pattern check should be skipped
         mock_browser.close.assert_called_once()
 
 
     @patch('website.sync_playwright')
     @patch('website.PlaywrightTimeoutError', Exception) # Mock PlaywrightTimeoutError
-    def test_get_session_cookies_login_error_message_detected(self, mock_sync_playwright_func):
+    def test_get_session_cookies_login_verification_fails_with_error_messages(self, mock_sync_playwright_func):
+        # This test covers: "When both fail, and error messages *are* found on the page, expecting None to be returned."
         mock_page = MagicMock()
 
-        mock_field_locator = MagicMock() # For username, password, submit
+        # Login form fields are found and filled
+        mock_field_locator = MagicMock()
         mock_field_locator.count.return_value = 1
 
+        # Simulate error messages found on page
         mock_error_locator = MagicMock()
-        mock_error_locator.count.return_value = 1 # Error message found
-        mock_error_locator.text_content.return_value = "Invalid credentials"
+        mock_error_locator.count.return_value = 1
+        mock_error_locator.text_content.return_value = "Test Error Message"
 
         def locator_side_effect(selector_str):
-            if selector_str == MOCK_CONFIG_DATA['newspaper']['selectors']['username'] or \
-               selector_str == MOCK_CONFIG_DATA['newspaper']['selectors']['password'] or \
-               selector_str == MOCK_CONFIG_DATA['newspaper']['selectors']['submit']:
-                return mock_field_locator
-            elif selector_str == '.login-error, .error-message, .alert-danger':
+            if selector_str == '.login-error, .error-message, .alert-danger':
                 return mock_error_locator
-            return MagicMock()
+            # For username, password, submit, login_success_selector
+            return mock_field_locator
         mock_page.locator.side_effect = locator_side_effect
 
-        mock_page.wait_for_selector.side_effect = website.PlaywrightTimeoutError("Timeout on success selector")
-        mock_page.wait_for_url.side_effect = website.PlaywrightTimeoutError("Timeout on success URL")
+        # Simulate login success element not found & URL pattern not matched
+        mock_page.wait_for_selector.side_effect = website.PlaywrightTimeoutError("Timeout waiting for success selector")
+        mock_page.wait_for_url.side_effect = website.PlaywrightTimeoutError("Timeout waiting for success URL")
+
 
         mock_browser = MagicMock()
         mock_browser.new_page.return_value = mock_page
@@ -567,10 +822,292 @@ def _assert_login_behavior(self, config_data):
         mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
         mock_sync_playwright_func.return_value = mock_sync_playwright_cm
 
-        cookies = website._get_session_cookies("http://dummy/login", "user", "pass")
-        self.assertIsNone(cookies)
-        self.mock_logger_error.assert_any_call("Login error detected: %s", "Invalid credentials")
+        login_url = MOCK_CONFIG_DATA['newspaper']['login_url']
+        username = MOCK_CONFIG_DATA['newspaper']['username']
+        password = MOCK_CONFIG_DATA['newspaper']['password']
+
+        returned_cookies = website._get_session_cookies(login_url, username, password)
+
+        self.assertIsNone(returned_cookies)
+        self.mock_logger_error.assert_any_call("Login error detected: %s", "Test Error Message")
         mock_browser.close.assert_called_once()
+
+    # --- Tests for _download_with_playwright ---
+
+    @patch('website.sync_playwright')
+    def test_download_with_playwright_success(self, mock_sync_playwright_func):
+        mock_page = MagicMock()
+        mock_context = MagicMock()
+        mock_browser = MagicMock()
+        mock_playwright_instance = MagicMock()
+        mock_sync_playwright_cm = MagicMock()
+
+        mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_browser.new_context.return_value = mock_context
+        mock_context.new_page.return_value = mock_page
+
+        mock_download_info = MagicMock()
+        mock_download_info.value.suggested_filename = 'downloaded_file.pdf'
+        mock_download_info.value.save_as = MagicMock()
+
+        mock_page.expect_download.return_value.__enter__.return_value = mock_download_info # Simulate 'with page.expect_download() as download_info:'
+
+        mock_response = MagicMock()
+        mock_response.status = 200 # Success status for page.goto()
+        mock_page.goto.return_value = mock_response
+
+
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "test_playwright_download")
+        cookies = [{'name': 'session', 'value': 'dummyval', 'domain': 'testnews.com'}]
+
+        success, file_format = website._download_with_playwright(
+            "http://testnews.com/downloadpage",
+            save_path_base,
+            cookies
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(file_format, "pdf")
+        mock_playwright_instance.chromium.launch.assert_called_once_with(headless=True)
+        mock_context.add_cookies.assert_called_once()
+        mock_page.goto.assert_called_once_with("http://testnews.com/downloadpage", wait_until='networkidle')
+        mock_page.expect_download.assert_called_once()
+        expected_save_location = save_path_base + ".pdf"
+        mock_download_info.value.save_as.assert_called_once_with(expected_save_location)
+        self.mock_os_makedirs.assert_called_with(os.path.dirname(save_path_base), exist_ok=True) # Ensure download_folder is created
+        mock_browser.close.assert_called_once()
+
+
+    @patch('website.sync_playwright')
+    @patch('website.PlaywrightTimeoutError', Exception) # Ensure it's the class used in website.py
+    def test_download_with_playwright_goto_timeout(self, mock_sync_playwright_func):
+        mock_page = MagicMock()
+        mock_context = MagicMock()
+        mock_browser = MagicMock()
+        mock_playwright_instance = MagicMock()
+        mock_sync_playwright_cm = MagicMock()
+
+        mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_browser.new_context.return_value = mock_context
+        mock_context.new_page.return_value = mock_page
+
+        mock_page.goto.side_effect = website.PlaywrightTimeoutError("Page goto timed out")
+
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "timeout_test")
+        success, message = website._download_with_playwright("http://test.com/dl", save_path_base, [])
+
+        self.assertFalse(success)
+        self.assertTrue("Playwright timeout" in message)
+        self.mock_logger_error.assert_any_call("Playwright timeout during download from %s: %s", "http://test.com/dl", "Page goto timed out")
+        mock_browser.close.assert_called_once()
+
+
+    @patch('website.sync_playwright')
+    @patch('website.PlaywrightError', Exception) # Ensure it's the class used in website.py
+    def test_download_with_playwright_generic_playwright_error(self, mock_sync_playwright_func):
+        mock_playwright_instance = MagicMock()
+        mock_sync_playwright_cm = MagicMock()
+        mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+        # Simulate error on chromium.launch()
+        mock_playwright_instance.chromium.launch.side_effect = website.PlaywrightError("Launch failed")
+        mock_sync_playwright_func.return_value = mock_sync_playwright_cm
+
+
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "generic_error_test")
+        success, message = website._download_with_playwright("http://test.com/anotherdl", save_path_base, [])
+
+        self.assertFalse(success)
+        self.assertTrue("Playwright error" in message)
+        self.mock_logger_error.assert_any_call("Playwright error during download from %s: %s", "http://test.com/anotherdl", "Launch failed")
+        # browser.close() might not be called if launch fails, depending on implementation, so no assertion here.
+
+    @patch('website.sync_playwright')
+    def test_download_with_playwright_goto_returns_error_status(self, mock_sync_playwright_func):
+        mock_page = MagicMock()
+        mock_context = MagicMock()
+        mock_browser = MagicMock()
+        mock_playwright_instance = MagicMock()
+        mock_sync_playwright_cm = MagicMock()
+
+        mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_browser.new_context.return_value = mock_context
+        mock_context.new_page.return_value = mock_page
+
+        mock_error_response = MagicMock()
+        mock_error_response.status = 404 # Error status
+        mock_page.goto.return_value = mock_error_response
+
+        # If goto fails, expect_download might not be reached, or might timeout.
+        # Let's assume for this test that expect_download is set up but the check for response.status happens first.
+        mock_download_info = MagicMock() # Required for 'with page.expect_download() as download_info:'
+        mock_page.expect_download.return_value.__enter__.return_value = mock_download_info
+
+
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "goto_status_error")
+        success, message = website._download_with_playwright("http://test.com/dl_error_status", save_path_base, [])
+
+        self.assertFalse(success)
+        self.assertTrue("Navigation failed or status error: 404" in message)
+        mock_browser.close.assert_called_once()
+
+    @patch('website.sync_playwright')
+    def test_download_with_playwright_suggested_filenames(self, mock_sync_playwright_func):
+        test_cases = [
+            ("file.pdf", "pdf"),
+            ("archive.zip", "pdf"), # Default to pdf if not pdf/html
+            ("document.html", "html"),
+            ("image.jpeg", "pdf"), # Default to pdf
+            ("no_extension_file", "pdf") # Default to pdf
+        ]
+
+        for suggested_name, expected_format in test_cases:
+            with self.subTest(suggested_name=suggested_name, expected_format=expected_format):
+                mock_page = MagicMock()
+                mock_context = MagicMock()
+                mock_browser = MagicMock()
+                mock_playwright_instance = MagicMock()
+                mock_sync_playwright_cm = MagicMock()
+
+                mock_sync_playwright_cm.__enter__.return_value = mock_playwright_instance
+                mock_playwright_instance.chromium.launch.return_value = mock_browser
+                mock_browser.new_context.return_value = mock_context
+                mock_context.new_page.return_value = mock_page
+
+                mock_download_info = MagicMock()
+                mock_download_info.value.suggested_filename = suggested_name
+                mock_download_info.value.save_as = MagicMock()
+                mock_page.expect_download.return_value.__enter__.return_value = mock_download_info
+
+                mock_response = MagicMock()
+                mock_response.status = 200
+                mock_page.goto.return_value = mock_response
+
+                save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"test_filename_{suggested_name.split('.')[0]}")
+
+                success, file_format = website._download_with_playwright(
+                    f"http://testnews.com/download_{suggested_name}",
+                    save_path_base,
+                    []
+                )
+
+                self.assertTrue(success)
+                self.assertEqual(file_format, expected_format)
+                expected_save_location = f"{save_path_base}.{expected_format}"
+                mock_download_info.value.save_as.assert_called_with(expected_save_location) # save_as is called with the correct extension
+                # Reset mocks for next subtest iteration if necessary (though patch.stopall in tearDown should handle it for fresh test runs)
+                mock_sync_playwright_func.reset_mock() # Reset the main mock for playwright
+
+    @patch('website.PLAYWRIGHT_AVAILABLE', False)
+    def test_download_with_playwright_not_available(self):
+        # Config.get is already mocked in setUp
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "pw_not_avail")
+        success, message = website._download_with_playwright("http://dummy.com/dl", save_path_base, [])
+        self.assertFalse(success)
+        self.assertEqual(message, "Playwright not available")
+        self.mock_logger_error.assert_any_call("Playwright not available for fallback download. Install with: pip install playwright")
+
+    # --- Tests for login_and_download error handling ---
+
+    def test_login_and_download_get_session_cookies_fails(self):
+        self.mock_get_session_cookies.return_value = None # Simulate failure to get cookies
+
+        target_date_str = '2023-02-01'
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"{target_date_str}_newspaper_cookies_fail")
+
+        success, message = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+
+        self.assertFalse(success)
+        self.assertEqual(message, "Failed to obtain cookies.")
+        self.mock_get_session_cookies.assert_called_once()
+        self.mock_requests_session_get.assert_not_called() # Should not proceed to download attempts
+        self.mock_playwright_download.assert_not_called()
+        self.mock_logger_error.assert_any_call("Failed to obtain session cookies. Login unsuccessful.")
+
+    def test_login_and_download_os_error_on_save_direct_request(self):
+        self.mock_os_path_exists.return_value = False
+        self.mock_get_session_cookies.return_value = [{'name': 'session', 'value': 'dummy'}]
+
+        mock_response_direct = MagicMock()
+        mock_response_direct.status_code = 200
+        mock_response_direct.headers = {'Content-Type': 'application/pdf'}
+        mock_response_direct.content = b"PDF Content"
+        self.mock_requests_session_get.return_value = mock_response_direct
+
+        self.mock_open.side_effect = OSError("Disk full or permission denied")
+
+        target_date_str = '2023-02-02'
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"{target_date_str}_newspaper_os_error_direct")
+
+        success, message = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+
+        self.assertFalse(success)
+        self.assertTrue("Failed to save file:" in message)
+        self.mock_open.assert_called_once_with(save_path_base + ".pdf", 'wb')
+        self.mock_logger_error.assert_any_call("Failed to save downloaded file %s: %s", save_path_base + ".pdf", "Disk full or permission denied")
+
+    def test_login_and_download_os_error_on_save_scraped_link(self):
+        self.mock_os_path_exists.return_value = False
+        self.mock_get_session_cookies.return_value = [{'name': 'session', 'value': 'dummy'}]
+
+        # Direct download fails, leading to scrape
+        mock_response_page_for_scrape = MagicMock()
+        mock_response_page_for_scrape.status_code = 200
+        mock_response_page_for_scrape.content = b"<html><a class='direct_download_link' href='download.pdf'>link</a></html>"
+
+        mock_response_scraped_file = MagicMock()
+        mock_response_scraped_file.status_code = 200
+        mock_response_scraped_file.headers = {'Content-Type': 'application/pdf'}
+        mock_response_scraped_file.content = b"Scraped PDF data"
+
+        self.mock_requests_session_get.side_effect = [
+            requests.exceptions.RequestException("Direct download failed for OS error test"),
+            mock_response_page_for_scrape,
+            mock_response_scraped_file
+        ]
+
+        mock_link_element = MagicMock()
+        mock_link_element.get.return_value = 'download.pdf' # Relative link
+        self.mock_beautifulsoup.return_value.select_one.return_value = mock_link_element
+
+        self.mock_open.side_effect = OSError("Cannot write to disk - scraped")
+
+        target_date_str = '2023-02-03'
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], f"{target_date_str}_newspaper_os_error_scrape")
+
+        success, message = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+        self.assertFalse(success)
+        self.assertTrue("Failed to save file (from scraped link):" in message)
+        # Ensure open was called for the scraped file attempt
+        self.mock_open.assert_called_once_with(save_path_base + ".pdf", 'wb')
+        self.mock_logger_error.assert_any_call(
+            "Failed to save downloaded file (from scraped link) %s: %s",
+            save_path_base + ".pdf", "Cannot write to disk - scraped"
+        )
+
+    def test_login_and_download_invalid_date_format(self):
+        target_date_str = '01-02-2023' # Invalid format (DD-MM-YYYY instead of YYYY-MM-DD)
+        save_path_base = os.path.join(MOCK_CONFIG_DATA['paths']['download_dir'], "newspaper_invalid_date")
+
+        success, message = website.login_and_download(
+            base_url='http://testnews.com', username='u', password='p',
+            save_path=save_path_base, target_date=target_date_str
+        )
+        self.assertFalse(success)
+        self.assertEqual(message, "Invalid date format")
+        self.mock_logger_error.assert_any_call("Invalid target_date format. Please use YYYY-MM-DD.")
+        self.mock_get_session_cookies.assert_not_called() # Should fail before attempting login
 
 
 if __name__ == '__main__':

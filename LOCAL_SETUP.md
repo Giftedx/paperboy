@@ -8,7 +8,7 @@ This guide will help you set up the newspaper downloader to run on your local ma
 - A newspaper subscription with web login
 - A Cloudflare R2 account (free tier) or AWS S3 account
 - A SendGrid account (free tier) or Mailgun account
-- Poppler utilities (if using `pdf2image` as a fallback for PDF thumbnails, e.g., `pdftoppm`).
+- Poppler Utilities: Required if `pdf2image` is used as a fallback for PDF thumbnail generation. Installation varies by OS (e.g., `poppler-utils` on Debian/Ubuntu, `poppler` on macOS via Homebrew).
 
 ## Step 1: Configure Storage Provider
 
@@ -44,6 +44,7 @@ For public access to your files, you'll need to set up:
 1. Sign up for a [Mailgun account](https://signup.mailgun.com/new/signup) (free tier allows sending to authorized recipients)
 2. Get your API key and domain information
 3. Add recipients to your authorized recipients list (for the sandbox domain)
+   Note: Mailgun is used via generic SMTP settings in this project. For dedicated Mailgun API usage, further customization of `email_sender.py` would be required.
 
 ## Step 3: Configure the Application
 
