@@ -1,44 +1,129 @@
-# Example configuration for Newspaper Emailer System
-newspaper:
-  url: "https://example.com/login"
-  username: "your_username"
-  password: "your_password"
-  selectors:
-    download_link: "a[href$='.pdf'], a[href$='.html']"
-    username: "#username"
-    password: "#password"
-    submit: "#login-btn"
-  login_url: "https://example.com/login"
-  user_agent: "Mozilla/5.0"
+# Configuration for the Automated Newspaper Downloader & Emailer System
 
+# --- Newspaper Specific Configuration ---
+newspaper:
+  # URL for the newspaper's main page or login page.
+  url: "https://example.com/newspaper/login" # Example: https://www.yournewspaper.com/login
+  # Username for your newspaper subscription.
+  username: "your_username" # Sensitive: Store actual value in .env or GitHub Secrets
+  # Password for your newspaper subscription.
+  password: "your_password" # Sensitive: Store actual value in .env or GitHub Secrets
+
+  # CSS selectors used by Playwright to interact with the login page and find download links.
+  selectors:
+    # CSS selector for the username input field on the login page.
+    username: "#username" # Example: input[name='user']
+    # CSS selector for the password input field on the login page.
+    password: "#password" # Example: input[name='pass']
+    # CSS selector for the submit button on the login page.
+    submit: "#login-btn"  # Example: button[type='submit']
+
+    # List of CSS selectors to find the download link on the newspaper page after login.
+    # The system will try these selectors in order until a link is found.
+    # Ensure these are specific enough to target the correct download link for the daily edition.
+    # Example:
+    # download_link_css_selectors:
+    #   - "a.button[href$='.pdf']"            # Specific button for PDF
+    #   - "a.downloadLink[href*='daily_edition']" # Link with 'daily_edition' in href
+    #   - "a[href$='.pdf']"                   # Generic PDF link
+    #   - "a[href$='.html']"                  # Generic HTML link
+    download_link_css_selectors: ["a[href$='.pdf']", "a[href$='.html']"]
+
+    # Optional: CSS selector for an element that appears after successful login.
+    # Used by Playwright to confirm login. Example: "#user-profile-icon" or "nav .user-menu"
+    login_success: ""
+    # Optional: A URL pattern (regex or simple string match) that the browser should navigate to after successful login.
+    # Used by Playwright to confirm login. Example: "https://example.com/dashboard" or "/account/overview"
+    login_success_url_pattern: ""
+
+  # URL specifically for the login page, if different from the main 'url'.
+  # If not provided, the main 'url' will be used for login attempts.
+  login_url: "https://example.com/newspaper/login" # Example: https://www.yournewspaper.com/login
+
+  # User-Agent string to use for HTTP requests.
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+# --- Storage Configuration ---
 storage:
-  provider: "r2" # or "s3"
-  endpoint_url: "https://<your-r2-endpoint>"
-  access_key_id: "your-access-key-id"
-  secret_access_key: "your-secret-access-key"
+  # Cloud storage provider. Options: "r2" (Cloudflare R2) or "s3" (AWS S3).
+  provider: "r2"
+  # Endpoint URL for the S3-compatible storage.
+  # For R2: https://<ACCOUNT_ID>.r2.cloudflarestorage.com (replace <ACCOUNT_ID>)
+  # For AWS S3, this is typically not needed if 'region' is set, but can be used for other S3-compatible services.
+  endpoint_url: "https://<ACCOUNT_ID>.r2.cloudflarestorage.com" # Sensitive: Store actual value in .env or GitHub Secrets
+  # Access Key ID for your storage provider.
+  access_key_id: "your-access-key-id" # Sensitive: Store actual value in .env or GitHub Secrets
+  # Secret Access Key for your storage provider.
+  secret_access_key: "your-secret-access-key" # Sensitive: Store actual value in .env or GitHub Secrets
+  # Region for your storage bucket (primarily for AWS S3). For R2, often "auto" or a specific region like "enam".
   region: "auto"
+  # Name of the bucket where newspapers will be stored.
   bucket: "newspaper-storage"
 
+# --- General Application Settings ---
 general:
+  # Number of days to retain downloaded newspaper files in cloud storage.
+  # This also influences how many past days' links might be included in emails,
+  # unless 'retention_days_for_email_links' is specifically configured elsewhere.
   retention_days: 7
+  # Date format string used for parsing and formatting dates throughout the application.
+  # Example: "%Y-%m-%d" (YYYY-MM-DD), "%m/%d/%Y" (MM/DD/YYYY)
   date_format: "%Y-%m-%d"
+  # Filename template for downloaded newspapers. {date} and {format} are placeholders.
+  filename_template: "{date}_newspaper.{format}"
+  # Filename template for generated thumbnails. {date} and {format} are placeholders.
+  thumbnail_filename_template: "{date}_thumbnail.{format}" # e.g. jpg, png
 
+
+# --- Email Configuration ---
 email:
-  sender: "sender@example.com"
+  # Email address from which the newspaper emails will be sent.
+  # Ensure this is a verified sender with your email provider.
+  sender: "sender@example.com" # Example: noreply@yourdomain.com
+
+  # List of email addresses to send the daily newspaper to.
+  # This is the primary list of recipients for the newspaper delivery.
   recipients:
     - "recipient1@example.com"
     - "recipient2@example.com"
+
+  # Subject line template for the daily newspaper email.
+  # {{ date }} will be replaced with the newspaper's date.
   subject_template: "Your Daily Newspaper - {{ date }}"
+
+  # Filename of the HTML email template (located in the template_dir).
   template: "email_template.html"
-  delivery_method: "smtp" # or "sendgrid"
-  smtp_host: "smtp.example.com"
+
+  # Email delivery method. Options: "smtp" or "sendgrid".
+  delivery_method: "smtp"
+
+  # SMTP server address (hostname or IP). Used if delivery_method is "smtp".
+  smtp_host: "smtp.example.com" # Example: smtp.mailgun.org, smtp.sendgrid.net
+  # SMTP server port. Common ports: 587 (TLS), 465 (SSL), 25 (less common, often unencrypted).
   smtp_port: 587
-  smtp_user: "smtp_user@example.com"
-  smtp_pass: "your-smtp-password"
+  # Username for SMTP authentication.
+  smtp_user: "smtp_user@example.com" # Sensitive: Store actual value in .env or GitHub Secrets
+  # Password for SMTP authentication.
+  smtp_pass: "your-smtp-password"    # Sensitive: Store actual value in .env or GitHub Secrets
+  # Whether to use TLS encryption for SMTP. 0 = No, 1 = Yes (STARTTLS).
+  # For SSL on port 465, specific handling might be needed or implied by port.
   smtp_tls: 1
-  sendgrid_api_key: "your-sendgrid-api-key"
+
+  # API key for SendGrid. Used if delivery_method is "sendgrid".
+  sendgrid_api_key: "your-sendgrid-api-key" # Sensitive: Store actual value in .env or GitHub Secrets
+
+  # Email address to send critical alerts and error notifications to (e.g., system administrator).
   alert_recipient: "admin@example.com"
 
+# --- Path Configuration ---
 paths:
+  # Directory where newspaper files will be downloaded locally before uploading to cloud storage.
   download_dir: "downloads"
+  # Directory containing email templates (e.g., email_template.html).
   template_dir: "templates"
+  # Path to the main log file for the application.
+  log_file: "newspaper_emailer.log"
+  # Path to the status file used by the GUI to display progress.
+  status_file: "newspaper_status.json"
+  # Path to the file storing scheduler state (used by GUI).
+  scheduler_state_file: "scheduler_state.json"

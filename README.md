@@ -175,4 +175,23 @@ This project is available under the MIT License - see the LICENSE file for detai
 - Ensure your automation complies with the Terms of Service of your newspaper subscription
 - Keep your repository private to protect your credentials
 - GitHub Actions provides 2,000 free minutes per month, which is more than sufficient for this automation
-- Cloud storage and email services are used within their free tiers 
+- Cloud storage and email services are used within their free tiers
+
+## ⚙️ Local Development and Configuration
+
+### Initial Setup with --onboarding
+
+For local development or to initially generate your configuration files (`config.yaml` and `.env`), you can use the `--onboarding` feature of the main script:
+
+```bash
+python run_newspaper.py --onboarding
+```
+
+This command will guide you through a series of prompts to gather essential information, such as API keys, email addresses, and storage details. Based on your input, it will create the `config.yaml` and `.env` files in the project root directory. These files can then be customized further if needed.
+
+This is particularly useful for:
+- First-time setup to ensure all necessary configuration parameters are considered.
+- Generating a template configuration that you can then adapt for different environments (e.g., local vs. GitHub Actions).
+- Quickly getting started without manually creating the configuration files from scratch.
+
+Remember to review the generated files and ensure they accurately reflect your setup, especially paths and sensitive credentials.
