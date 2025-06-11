@@ -150,7 +150,7 @@ To improve the reliability and maintainability of the codebase, the following ar
 ### 3.2. Integrate Test Coverage Measurement
 *   **Recommendation:** Integrate a test coverage tool like `coverage.py`. Configure it to run with your test suite (e.g., via pytest or a separate command). This will provide quantitative data on which lines of code are executed by your tests, helping to identify areas lacking coverage. Aim to increase coverage over time, focusing on critical paths and error handling logic.
 
-## 3. Recommendations for Future Work
+## 4. Recommendations for Future Work
 
 This section outlines further actions that could enhance the codebase, based on the analysis performed. These are generally of lower priority than the items addressed in Plan Steps 3 and 4 but would contribute to the project's robustness, maintainability, and feature set.
 
