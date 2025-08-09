@@ -7,6 +7,7 @@ Handles composing and sending emails using SMTP or SendGrid.
 import os
 import logging
 import smtplib
+import requests
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
