@@ -67,9 +67,23 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
     )
     # Prepare attachments
     thumbnail_data = None
-    if thumbnail_path and os.path.isfile(thumbnail_path):
-        with open(thumbnail_path, 'rb') as f:
-            thumbnail_data = f.read()
+    if thumbnail_path:
+        if os.path.isfile(thumbnail_path):
+            # Local file path
+            with open(thumbnail_path, 'rb') as f:
+                thumbnail_data = f.read()
+        elif thumbnail_path.startswith(('http://', 'https://')):
+            # URL - download the thumbnail
+            try:
+                import requests
+                response = requests.get(thumbnail_path, timeout=30)
+                response.raise_for_status()
+                thumbnail_data = response.content
+                logger.info("Downloaded thumbnail from URL: %s", thumbnail_path)
+            except Exception as e:
+                logger.warning("Failed to download thumbnail from URL %s: %s", thumbnail_path, e)
+        else:
+            logger.warning("Invalid thumbnail_path: %s (not a file or URL)", thumbnail_path)
     # Dry run mode
     if dry_run:
         logger.info("[Dry Run] Would send email to: %s", valid_recipients)

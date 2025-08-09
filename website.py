@@ -28,7 +28,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # --- Configuration from centralized config module ---
-LOGIN_URL = config.config.get(('newspaper', 'login_url'), WEBSITE_URL)
+LOGIN_URL = config.config.get(('newspaper', 'login_url'), config.config.get(('newspaper', 'url')))
 USERNAME = config.config.get(('newspaper', 'username'))
 PASSWORD = config.config.get(('newspaper', 'password'))
 DOWNLOAD_DIR = config.config.get(('paths', 'download_dir'), 'downloads')

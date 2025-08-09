@@ -5,6 +5,7 @@ Main pipeline orchestrator for the newspaper downloader and emailer system.
 
 import os
 import json
+import logging
 from datetime import date, timedelta, datetime
 import time
 
@@ -15,7 +16,7 @@ import config # Assuming config.py has been enhanced
 import thumbnail # Assuming thumbnail.py has been enhanced
 
 # Logging setup
-logger = config.get_logger(__name__) # Use standardized logger
+logger = logging.getLogger(__name__) # Use standard logging
 DATE_FORMAT = '%Y-%m-%d' 
 FILENAME_TEMPLATE = "{date}_newspaper.{format}" 
 THUMBNAIL_FILENAME_TEMPLATE = "{date}_thumbnail.{format}"
@@ -287,7 +288,7 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
                 target_date=target_date,
                 today_paper_url=cloud_file_url, 
                 past_papers=past_papers,
-                thumbnail_url=thumbnail_cloud_url,
+                thumbnail_path=thumbnail_cloud_url,
                 dry_run=dry_run
             )
             if email_sent_or_drafted:

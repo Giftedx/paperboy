@@ -1,0 +1,17 @@
+2025-08-09 22:44:29,730 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:44:37,866 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:44:45,906 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:44:52,495 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:26,930 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:35,856 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:38,977 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:41,965 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:48,501 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:59,795 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-09 22:45:59,866 - config - INFO - .env file not found at '.env'. Skipping .env load.
+2025-08-09 22:45:59,870 - config - INFO - Loaded YAML configuration from 'config.yaml'.
+2025-08-09 22:45:59,870 - config - CRITICAL - MISSING critical configuration: 'email.recipient'. Please define it in config.yaml or as an environment variable (EMAIL_RECIPIENT).
+2025-08-09 22:45:59,870 - config - CRITICAL - MISSING critical configuration: 'email.smtp_server'. Please define it in config.yaml or as an environment variable (EMAIL_SMTP_SERVER).
+2025-08-09 22:45:59,870 - config - CRITICAL - MISSING critical configuration: 'email.smtp_username'. Please define it in config.yaml or as an environment variable (EMAIL_SMTP_USERNAME).
+2025-08-09 22:45:59,870 - config - CRITICAL - MISSING critical configuration: 'email.smtp_password'. Please define it in config.yaml or as an environment variable (EMAIL_SMTP_PASSWORD).
+2025-08-09 22:45:59,870 - config - ERROR - Critical configuration validation FAILED. Some parameters are missing or invalid.
