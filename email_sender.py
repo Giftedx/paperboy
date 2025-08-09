@@ -75,7 +75,6 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
         elif thumbnail_path.startswith(('http://', 'https://')):
             # URL - download the thumbnail
             try:
-                import requests
                 response = requests.get(thumbnail_path, timeout=30)
                 response.raise_for_status()
                 thumbnail_data = response.content
