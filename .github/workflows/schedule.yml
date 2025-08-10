@@ -1,0 +1,32 @@
+name: Daily Newspaper Run
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Configure environment
+        env:
+          NEWSPAPER_CONFIG: config.yaml
+          NEWSPAPER_ENV: .env
+        run: |
+          echo "Using config at $NEWSPAPER_CONFIG and env at $NEWSPAPER_ENV"
+      - name: Run pipeline
+        env:
+          NEWSPAPER_CONFIG: ${{ vars.NEWSPAPER_CONFIG || 'config.yaml' }}
+          NEWSPAPER_ENV: ${{ vars.NEWSPAPER_ENV || '.env' }}
+        run: |
+          python main.py
