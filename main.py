@@ -198,9 +198,7 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         
         download_success, download_result = website.login_and_download(
             base_url=config.config.get(('newspaper', 'url')),
-            username=config.config.get(('newspaper', 'username')),
-            password=config.config.get(('newspaper', 'password')),
-            save_path=base_save_path, 
+            save_path=base_save_path,
             target_date=target_date.strftime(DATE_FORMAT),
             dry_run=dry_run,
             force_download=force_download
@@ -282,7 +280,7 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         update_status('email', 'in_progress', 'Preparing email...', percent=80, eta='approx. 30 sec')
         try:
             retention_days_for_links = config.config.get(('general', 'retention_days_for_email_links'), 7)
-            past_papers = get_past_papers_from_storage(target_date, days=retention_days_for_links)
+            past_papers = [] if dry_run else get_past_papers_from_storage(target_date, days=retention_days_for_links)
             
             email_sent_or_drafted = email_sender.send_email(
                 target_date=target_date,
@@ -302,9 +300,13 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
             update_status('email', 'error', f"Email preparation failed: {e}", percent=80)
             return False
 
-        update_status('cleanup', 'in_progress', 'Cleaning up old newspapers from cloud storage...', percent=97)
-        cleanup_old_files_main(target_date, dry_run=dry_run)
-        update_status('cleanup', 'success', 'Cleanup process complete.', percent=99)
+        # Skip storage cleanup during dry runs to avoid interacting with cloud resources
+        if dry_run:
+            update_status('cleanup', 'skipped', 'Cleanup skipped in dry-run mode.', percent=99)
+        else:
+            update_status('cleanup', 'in_progress', 'Cleaning up old newspapers from cloud storage...', percent=97)
+            cleanup_old_files_main(target_date, dry_run=dry_run)
+            update_status('cleanup', 'success', 'Cleanup process complete.', percent=99)
         
         update_status('complete', 'success', 'Newspaper processing complete!', percent=100)
         logger.info("Daily newspaper processing for %s completed successfully.", target_date.strftime(DATE_FORMAT))

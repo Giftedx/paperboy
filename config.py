@@ -10,7 +10,11 @@ import yaml
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path # Keep Path for potential future use, though not used in current logic
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv  # Optional dependency
+except Exception:  # ImportError or others
+    def load_dotenv(*args, **kwargs):  # type: ignore
+        return False
 import sys
 
 logger = logging.getLogger(__name__)
@@ -44,23 +48,23 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
     logger.info("Logging configured to level '%s', writing to '%s'.", logging.getLevelName(log_level), log_filepath)
 
 # Define critical configuration keys and their expected types/validation rules
-# Format: (('tuple', 'of', 'keys'), 'validation_rule')
-# Validation rules: 'str' (non-empty string), 'int', 'bool', 'url' (basic http/https check)
+# Format: (("tuple", "of", "keys"), 'validation_rule')
+# Validation rules: 'str' (non-empty string), 'int', 'bool', 'url' (basic http/https check), 'email_list'
 CRITICAL_CONFIG_KEYS = [
-    (('newspaper', 'url'), 'url'),
-    (('newspaper', 'username'), 'str'),
-    (('newspaper', 'password'), 'str'),  # Presence checked, value redacted
-    (('email', 'recipients'), 'str'),    # Could be enhanced for actual email format
-    (('email', 'sender'), 'str'),      # Could be enhanced for actual email format
-    (('email', 'smtp_host'), 'str'),
-    (('email', 'smtp_port'), 'int'),
-    (('email', 'smtp_user'), 'str'),
-    (('email', 'smtp_pass'), 'str'), # Presence checked, value redacted
-    (('storage', 'endpoint_url'), 'url'),
-    (('storage', 'access_key_id'), 'str'),
-    (('storage', 'secret_access_key'), 'str'),
-    (('storage', 'bucket'), 'str'),
-    (('paths', 'download_dir'), 'str'), # Default is 'downloads' in other modules
+    (("newspaper", "url"), 'url'),
+    (("newspaper", "username"), 'str'),
+    (("newspaper", "password"), 'str'),  # Presence checked, value redacted
+    (("email", "recipients"), 'email_list'),
+    (("email", "sender"), 'str'),      # Could be enhanced for actual email format
+    (("email", "smtp_host"), 'str'),
+    (("email", "smtp_port"), 'int'),
+    (("email", "smtp_user"), 'str'),
+    (("email", "smtp_pass"), 'str'), # Presence checked, value redacted
+    (("storage", "endpoint_url"), 'url'),
+    (("storage", "access_key_id"), 'str'),
+    (("storage", "secret_access_key"), 'str'),
+    (("storage", "bucket"), 'str'),
+    (("paths", "download_dir"), 'str'), # Default is 'downloads' in other modules
 ]
 
 # Substrings to identify keys that should have their values redacted in logs
@@ -126,6 +130,23 @@ class Config:
                 if not isinstance(value, str) or not (value.startswith('http://') or value.startswith('https://')):
                     logger.critical("INVALID configuration: '%s' must be a valid URL (starting with http:// or https://). Found: '%s'", 
                                     key_str, "********" if self._is_secret(key_path) else value)
+                    is_valid = False
+            elif validation_rule == 'email_list':
+                # Accept list of strings; also accept a single comma-separated string for convenience
+                if isinstance(value, list):
+                    if not value or not all(isinstance(v, str) and v.strip() for v in value):
+                        logger.critical("INVALID configuration: '%s' must be a non-empty list of email strings.", key_str)
+                        is_valid = False
+                elif isinstance(value, str):
+                    parsed = [v.strip() for v in value.split(',') if v.strip()]
+                    if not parsed:
+                        logger.critical("INVALID configuration: '%s' must be a non-empty list of email strings.", key_str)
+                        is_valid = False
+                    else:
+                        # Normalize into list for downstream consumers
+                        self._set(key_path, parsed)
+                else:
+                    logger.critical("INVALID configuration: '%s' must be a list of emails or comma-separated string. Found type: %s", key_str, type(value).__name__)
                     is_valid = False
             # Add more rules like 'bool' as needed in the future
         
@@ -281,27 +302,26 @@ class Config:
                     else:
                         logger.warning("Env var '%s' with value '%s' could not be cast to bool, returning as string. Validation will assess if this is acceptable.", env_key, env_value)
                         return env_value # Return string, validation is centralized
+                elif expected_type == 'email_list':
+                    # Allow comma-separated env var
+                    parsed = [v.strip() for v in env_value.split(',') if v.strip()]
+                    return parsed if parsed else None
                 return env_value # Return as string if no specific type cast or if cast failed warningly
             
             # If not in YAML and not in env, return default
             return default
 
+    def _set(self, key_tuple, value):
+        """Set a value deep in the YAML config structure to normalize types during validation."""
+        d = self._config
+        for k in key_tuple[:-1]:
+            if k not in d or not isinstance(d[k], dict):
+                d[k] = {}
+            d = d[k]
+        d[key_tuple[-1]] = value
+
 # Singleton config instance
 config = Config()
-
-# Example of how to load config at application startup (e.g., in main.py)
-# if __name__ == '__main__':
-#     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#     if config.load():
-#         logger.info("Configuration loaded and validated successfully.")
-#         # Example usage:
-#         # SENDER_EMAIL = config.get(('email', 'sender'), 'default_sender@example.com')
-#         # logger.info("Sender email: %s", SENDER_EMAIL)
-#         # API_KEY = config.get(('some_service', 'api_key')) # Will be redacted in summary
-#         # if API_KEY:
-#         #    logger.info("Some service API key is set.")
-#     else:
-#         logger.error("Failed to load or validate configuration. Application might not run correctly.")
 
 # Set up logging immediately when config module is imported
 setup_logging()

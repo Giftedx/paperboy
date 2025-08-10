@@ -1,1 +1,1 @@
-{"step": "config_load", "status": "error", "message": "Configuration failed. Check logs.", "timestamp": "2025-08-09T22:45:59.870474", "percent": 0, "eta": null, "explainer": null}
+{"step": "complete", "status": "success", "message": "Newspaper processing complete!", "timestamp": "2025-08-10T06:08:50.984279", "percent": 100, "eta": null, "explainer": null}
