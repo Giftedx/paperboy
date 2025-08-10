@@ -43,7 +43,7 @@ def check_imports(file_path):
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
-            # Don't actually execute the module, just check if it can be loaded
+            spec.loader.exec_module(module)  # Actually execute the module to check for import errors
             return True
     except Exception as e:
         print_status(f"Import error in {file_path}: {e}", "ERROR")
