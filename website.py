@@ -92,18 +92,14 @@ if __name__ == '__main__':
     logger.info("--- Running website.py standalone test for date: %s ---", test_date_str)
 
     WEBSITE_URL_TEST = os.environ.get('WEBSITE_URL', 'https://localhost:8000') # Placeholder, replace with actual URL
-    USERNAME_TEST = os.environ.get('WEBSITE_USERNAME', 'testuser') # Placeholder, replace with actual username
-    PASSWORD_TEST = os.environ.get('WEBSITE_PASSWORD', 'testpass') # Placeholder, replace with actual password
     SAVE_PATH_BASE_TEST = os.path.join(os.environ.get('DOWNLOAD_DIR', 'downloads'), f"{test_date_str}_test_download")
 
-    if not all([WEBSITE_URL_TEST, USERNAME_TEST, PASSWORD_TEST]):
-        logger.error("Required environment variables (WEBSITE_URL, WEBSITE_USERNAME, WEBSITE_PASSWORD) or config values not set for standalone test.")
+    if not WEBSITE_URL_TEST:
+        logger.error("Required environment variable (WEBSITE_URL) or config value not set for standalone test.")
     else:
-        logger.info("Initiating test download for URL: %s, User: %s, Save Path Base: %s", WEBSITE_URL_TEST, USERNAME_TEST, SAVE_PATH_BASE_TEST)
+        logger.info("Initiating test download for URL: %s, Save Path Base: %s", WEBSITE_URL_TEST, SAVE_PATH_BASE_TEST)
         success, file_info = login_and_download(
             base_url=WEBSITE_URL_TEST,
-            username=USERNAME_TEST,
-            password=PASSWORD_TEST,
             save_path=SAVE_PATH_BASE_TEST, 
             target_date=test_date_str,
             dry_run=False, 

@@ -3,7 +3,7 @@
 # --- Newspaper Specific Configuration ---
 newspaper:
   # URL for the newspaper's main page or login page.
-  url: "https://example.com/newspaper/login" # Example: https://www.yournewspaper.com/login
+  url: "https://example.com" # Base site URL for simplified download pattern
   # Username for your newspaper subscription.
   username: "your_username" # Sensitive: Store actual value in .env or GitHub Secrets
   # Password for your newspaper subscription.
@@ -42,6 +42,9 @@ newspaper:
 
   # User-Agent string to use for HTTP requests.
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+  # Simplified GET download pattern used by website.py
+  download_path_pattern: "newspaper/download/{date}"
 
 # --- Storage Configuration ---
 storage:

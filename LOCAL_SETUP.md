@@ -37,10 +37,11 @@ Collect these details from your provider:
 Create `config.yaml` and `.env` in the project root. Minimum keys in `config.yaml`:
 
 ```yaml
-enewspaper:
-  url: "https://example.com/newspaper"
+newspaper:
+  url: "https://example.com"
   username: "your_username"
   password: "your_password"
+  download_path_pattern: "newspaper/download/{date}"
 
 storage:
   endpoint_url: "https://<ACCOUNT_ID>.r2.cloudflarestorage.com"

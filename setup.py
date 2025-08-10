@@ -39,9 +39,8 @@ setup(
         "Programming Language :: Python :: 3.13",
     ],
     python_requires=">=3.8",
-    install_requires=read_requirements("requirements_basic.txt"),
+    install_requires=read_requirements("requirements.txt"),
     extras_require={
-        "full": read_requirements("requirements.txt"),
         "dev": [
             "pytest>=8.0.0",
             "pytest-cov>=6.0.0",
@@ -50,11 +49,7 @@ setup(
             "flake8"
         ],
     },
-    entry_points={
-        "console_scripts": [
-            "newspaper-emailer=run_newspaper:main_entry",
-        ],
-    },
+    
     include_package_data=True,
     package_data={
         "": ["templates/*.html", "*.yaml", "*.md"],
