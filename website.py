@@ -15,7 +15,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-def login_and_download(base_url: str, username: str, password: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
+def login_and_download(base_url: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
     """Download the newspaper for the given date using a simple GET.
 
     - Expects the newspaper to be available at base_url/newspaper/download/YYYY-MM-DD
