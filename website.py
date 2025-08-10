@@ -44,7 +44,9 @@ def login_and_download(base_url: str, save_path: str, target_date: str | None = 
             logger.info("File already exists locally: %s", existing_pdf)
             return True, existing_pdf
 
-    download_url = urljoin(base_url.rstrip("/") + "/", f"newspaper/download/{target_date_str}")
+    # Use configurable download path pattern
+    download_path = download_path_pattern.format(date=target_date_str)
+    download_url = urljoin(base_url.rstrip("/") + "/", download_path)
     logger.info("Downloading from: %s", download_url)
 
     try:
