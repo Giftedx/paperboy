@@ -49,4 +49,4 @@ py-modules = [
 ]
 
 [tool.setuptools.package-data]
-"" = ["templates/*.html", "*.yaml", "*.md"]
+"" = ["*.yaml", "*.md"]
