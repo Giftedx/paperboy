@@ -55,7 +55,7 @@ Open http://localhost:5000 in your browser for the web interface.
 
 ### Option A: System Scheduler
 - **Windows**: Use `schedule_task.ps1` (run as administrator)
-- **Linux/macOS**: Add to crontab: `0 6 * * * /path/to/run_newspaper.py`
+- **Linux/macOS**: Add to crontab: 0 6 * * * /path/to/newspaper-emailer/venv/bin/python3 /path/to/newspaper-emailer/run_newspaper.py
 
 ### Option B: GUI Scheduler
 Use the built-in scheduler in the web interface.
