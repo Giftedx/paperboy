@@ -82,7 +82,7 @@ if __name__ == '__main__':
     test_date_str = '2023-10-26' 
     logger.info("--- Running website.py standalone test for date: %s ---", test_date_str)
 
-    WEBSITE_URL_TEST = os.environ.get('WEBSITE_URL', 'http://localhost:8000') # Placeholder, replace with actual URL
+    WEBSITE_URL_TEST = os.environ.get('WEBSITE_URL', 'https://localhost:8000') # Placeholder, replace with actual URL
     USERNAME_TEST = os.environ.get('WEBSITE_USERNAME', 'testuser') # Placeholder, replace with actual username
     PASSWORD_TEST = os.environ.get('WEBSITE_PASSWORD', 'testpass') # Placeholder, replace with actual password
     SAVE_PATH_BASE_TEST = os.path.join(os.environ.get('DOWNLOAD_DIR', 'downloads'), f"{test_date_str}_test_download")
