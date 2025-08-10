@@ -46,6 +46,8 @@ setup(
             "pytest>=8.0.0",
             "pytest-cov>=6.0.0",
             "coverage>=7.0.0",
+            "black",
+            "flake8"
         ],
     },
     entry_points={
