@@ -11,7 +11,7 @@ $runScriptContent = @"
 `$ErrorActionPreference = 'Stop'
 `$scriptDir = Split-Path -Parent `$MyInvocation.MyCommand.Path
 `$pythonScript = Join-Path `$scriptDir "main.py"
-python "`$pythonScript"
+python "`$pythonScript" @args
 "@
 
 # Write the run script to disk
