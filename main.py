@@ -181,6 +181,10 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         global STATUS_FILE
         STATUS_FILE = config.config.get(('paths', 'status_file'), STATUS_FILE)
 
+        # Reconfigure logging to use configured log file if provided
+        configured_log_file = config.config.get(('paths', 'log_file'), 'newspaper_emailer.log')
+        config.setup_logging(log_file=configured_log_file, log_dir='logs')
+
         update_status('date_setup', 'in_progress', 'Determining target date...', percent=10)
         if target_date_str:
             try:

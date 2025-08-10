@@ -102,7 +102,7 @@ Use your system scheduler (cron, Task Scheduler) to run daily. Example cron:
 
 ## Troubleshooting
 
-- Check the logs in `logs/app.log` and `newspaper_emailer.log`
+- Check the logs in `logs/newspaper_emailer.log`
 - Verify storage credentials and bucket permissions
 - Verify SMTP credentials and that your sender is allowed to send
 - Ensure the expected download URL is valid for your newspaper site
