@@ -50,19 +50,23 @@ CRITICAL_CONFIG_KEYS = [
     (('newspaper', 'url'), 'url'),
     (('newspaper', 'username'), 'str'),
     (('newspaper', 'password'), 'str'),  # Presence checked, value redacted
-    (('email', 'recipient'), 'str'),    # Could be enhanced for actual email format
+    (('email', 'recipients'), 'str'),    # Could be enhanced for actual email format
     (('email', 'sender'), 'str'),      # Could be enhanced for actual email format
-    (('email', 'smtp_server'), 'str'),
+    (('email', 'smtp_host'), 'str'),
     (('email', 'smtp_port'), 'int'),
-    (('email', 'smtp_username'), 'str'),
-    (('email', 'smtp_password'), 'str'), # Presence checked, value redacted
+    (('email', 'smtp_user'), 'str'),
+    (('email', 'smtp_pass'), 'str'), # Presence checked, value redacted
+    (('storage', 'endpoint_url'), 'url'),
+    (('storage', 'access_key_id'), 'str'),
+    (('storage', 'secret_access_key'), 'str'),
+    (('storage', 'bucket'), 'str'),
     (('paths', 'download_dir'), 'str'), # Default is 'downloads' in other modules
 ]
 
 # Substrings to identify keys that should have their values redacted in logs
 SECRET_KEY_SUBSTRINGS = [
     "password", "token", "secret", "passwd", 
-    "smtp_user", "smtp_pass", "api_key" # Added common term
+    "smtp_user", "smtp_pass", "api_key", "access_key", "secret_key" # Added common terms
 ]
 
 class Config:

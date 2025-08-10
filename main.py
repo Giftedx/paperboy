@@ -318,10 +318,13 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         final_error_msg = f"Main pipeline failed: {e}"
         logger.exception(final_error_msg)
         try: # Best effort to update status one last time
-            with open(STATUS_FILE, 'r', encoding='utf-8') as f_current_status:
-                current_status_data = json.load(f_current_status)
-            if current_status_data.get('status') != 'error': 
-                 update_status('pipeline_error', 'error', final_error_msg, percent=current_status_data.get('percent', 0))
+            if os.path.exists(STATUS_FILE):
+                with open(STATUS_FILE, 'r', encoding='utf-8') as f_current_status:
+                    current_status_data = json.load(f_current_status)
+                if current_status_data.get('status') != 'error': 
+                     update_status('pipeline_error', 'error', final_error_msg, percent=current_status_data.get('percent', 0))
+            else:
+                update_status('pipeline_error', 'error', final_error_msg) # Default percent
         except Exception: # If status cannot be read or written
              update_status('pipeline_error', 'error', final_error_msg) # Default percent
         return False
