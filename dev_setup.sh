@@ -8,9 +8,9 @@ echo "🚀 Setting up Newspaper Emailer Development Environment"
 
 # Check if Python 3.8+ is available
 python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-required_version="3.8"
 
-if [ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" != "$required_version" ]; then
+python3 -c "import sys; exit(0) if sys.version_info >= (3,8) else exit(1)"
+if [ $? -ne 0 ]; then
     echo "❌ Error: Python 3.8 or higher is required. Found: $python_version"
     exit 1
 fi
