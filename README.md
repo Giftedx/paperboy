@@ -107,6 +107,19 @@ Use your system scheduler (cron, Task Scheduler) to run daily. Example cron:
 - Verify SMTP credentials and that your sender is allowed to send
 - Ensure the expected download URL is valid for your newspaper site
 
+## Customizing the email template
+
+- The HTML template lives at `templates/email_template.html` and is rendered with Jinja2.
+- You can reference these variables in the template:
+  - `recipient`: optional recipient name or email
+  - `date`: formatted date string
+  - `today_paper_url`: public URL to today’s file
+  - `past_papers`: list of `(date_str, url)` tuples
+  - `thumbnail_cid`: inline image content-id for the thumbnail (if present)
+  - `archive_summary`: short summary text under the list
+- To use a different template file, set `email.template` in `config.yaml` and place your file under `paths.template_dir` (default `templates`).
+- Basic styles can be added inline in the `<style>` section to improve email client compatibility.
+
 ## License
 
 MIT
