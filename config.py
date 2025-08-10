@@ -48,8 +48,8 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
         root_logger.removeHandler(h)
         try:
             h.close()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to close log handler {h}: {e}", file=sys.stderr)
 
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
