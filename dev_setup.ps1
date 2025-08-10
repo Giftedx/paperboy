@@ -14,13 +14,18 @@ try {
         Write-Host "❌ Error: Python not found. Please install Python 3.8 or higher." -ForegroundColor Red
         exit 1
     }
-    
+
+    # Validate pythonVersion format (should be like "3.8" or "3.10")
+    if (-not ($pythonVersion -match '^\d+\.\d+$')) {
+        Write-Host "❌ Error: Unable to parse Python version. Found: '$pythonVersion'" -ForegroundColor Red
+        exit 1
+    }
+
     $requiredVersion = "3.8"
     if ([version]$pythonVersion -lt [version]$requiredVersion) {
         Write-Host "❌ Error: Python 3.8 or higher is required. Found: $pythonVersion" -ForegroundColor Red
         exit 1
     }
-    
     Write-Host "✅ Python version: $pythonVersion" -ForegroundColor Green
 } catch {
     Write-Host "❌ Error checking Python version: $_" -ForegroundColor Red
