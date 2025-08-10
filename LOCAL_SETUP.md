@@ -5,7 +5,7 @@ This guide helps you set up the simplified daily newspaper downloader locally.
 ## Prerequisites
 
 - Python 3.8 or higher
-- A newspaper subscription with web login
+- A newspaper site with a predictable daily download URL
 - Cloudflare R2 (S3-compatible) or AWS S3
 - SMTP credentials (no SendGrid/Mailgun API usage)
 
@@ -39,8 +39,6 @@ Create `config.yaml` and `.env` in the project root. Minimum keys in `config.yam
 ```yaml
 newspaper:
   url: "https://example.com"
-  username: "your_username"
-  password: "your_password"
   download_path_pattern: "newspaper/download/{date}"
 
 storage:
