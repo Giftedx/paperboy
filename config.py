@@ -23,6 +23,7 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
     """
     Configures logging for the application.
     Sets up console and rotating file handlers with a standard format.
+    Safe to call multiple times; replaces existing root handlers.
     """
     log_directory = Path(log_dir)
     log_directory.mkdir(parents=True, exist_ok=True)
@@ -31,17 +32,25 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
     # Define the log format
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    # Console handler
+    # Prepare handlers
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
 
-    # File handler with daily rotation and 7-day retention
     file_handler = TimedRotatingFileHandler(log_filepath, when="midnight", interval=1, backupCount=7)
     file_handler.setFormatter(formatter)
 
-    # Get the root logger and set level and handlers
+    # Configure root logger idempotently
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
+
+    # Remove existing handlers to prevent duplication on reconfiguration
+    for h in list(root_logger.handlers):
+        root_logger.removeHandler(h)
+        try:
+            h.close()
+        except Exception:
+            pass
+
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 

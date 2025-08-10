@@ -36,12 +36,14 @@ def update_status(step, status, message=None, percent=None, eta=None, explainer=
         'explainer': explainer
     }
     try:
-        with open(STATUS_FILE, 'w', encoding='utf-8') as f:
+        # Allow overriding STATUS_FILE from config paths.status_file when available
+        status_file_path = config.config.get(('paths', 'status_file'), STATUS_FILE)
+        with open(status_file_path, 'w', encoding='utf-8') as f:
             json.dump(status_obj, f)
     except IOError as e: 
-        logger.warning("Could not write status file '%s': %s", STATUS_FILE, e)
+        logger.warning("Could not write status file '%s': %s", status_file_path if 'status_file_path' in locals() else STATUS_FILE, e)
     except Exception as e:
-        logger.exception("Unexpected error writing status file '%s': %s", STATUS_FILE, e)
+        logger.exception("Unexpected error writing status file '%s': %s", status_file_path if 'status_file_path' in locals() else STATUS_FILE, e)
 
 
 # --- Helper Functions ---
@@ -174,6 +176,10 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         FILENAME_TEMPLATE = config.config.get(('general', 'filename_template'), FILENAME_TEMPLATE)
         THUMBNAIL_FILENAME_TEMPLATE = config.config.get(('general', 'thumbnail_filename_template'), THUMBNAIL_FILENAME_TEMPLATE)
         RETENTION_DAYS = config.config.get(('general', 'retention_days'), RETENTION_DAYS)
+        
+        # Align STATUS_FILE with config after config is loaded
+        global STATUS_FILE
+        STATUS_FILE = config.config.get(('paths', 'status_file'), STATUS_FILE)
 
         update_status('date_setup', 'in_progress', 'Determining target date...', percent=10)
         if target_date_str:
