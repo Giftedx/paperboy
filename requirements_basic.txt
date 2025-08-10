@@ -2,7 +2,7 @@
 # Install with: pip install -r requirements_basic.txt
 
 # Core HTTP and web scraping
-requests==2.32.3
+requests==2.32.4
 beautifulsoup4==4.13.4
 
 # Cloud storage (S3/R2)
@@ -17,7 +17,7 @@ sendgrid==6.10.0
 Jinja2==3.1.6
 
 # Image processing (for thumbnails)
-Pillow==11.2.1
+Pillow==11.3.0
 
 # Web framework (for GUI)
 Flask==3.0.0
