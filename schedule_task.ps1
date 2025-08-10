@@ -10,8 +10,8 @@ $runScriptContent = @"
 # PowerShell script to run the newspaper downloader
 `$ErrorActionPreference = 'Stop'
 `$scriptDir = Split-Path -Parent `$MyInvocation.MyCommand.Path
-`$pythonScript = Join-Path `$scriptDir "run_newspaper.py"
-python "`$pythonScript"
+`$pythonScript = Join-Path `$scriptDir "main.py"
+python "`$pythonScript" @args
 "@
 
 # Write the run script to disk

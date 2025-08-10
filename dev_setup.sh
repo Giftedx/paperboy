@@ -33,9 +33,9 @@ source venv/bin/activate
 echo "⬆️  Upgrading pip..."
 pip install --upgrade pip
 
-# Install basic requirements
-echo "📚 Installing all dependencies for development..."
-pip install -e .[full,dev]
+# Install requirements
+echo "📚 Installing dependencies..."
+pip install -r requirements.txt
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
@@ -44,7 +44,7 @@ mkdir -p downloads logs templates
 # Create initial configuration files if they don't exist
 if [ ! -f "config.yaml" ]; then
     echo "⚙️  Creating initial config.yaml..."
-    cp config.yaml.example config.yaml 2>/dev/null || echo "# Configuration file" > config.yaml
+    echo "# Configuration file" > config.yaml
 fi
 
 if [ ! -f ".env" ]; then
@@ -53,21 +53,14 @@ if [ ! -f ".env" ]; then
     echo "# Add your credentials here" >> .env
 fi
 
-# Set up pre-commit hooks (optional)
-if command -v pre-commit &> /dev/null; then
-    echo "🔗 Setting up pre-commit hooks..."
-    pre-commit install
-fi
-
 echo ""
 echo "🎉 Development environment setup complete!"
 echo ""
 echo "Next steps:"
 echo "1. Edit config.yaml with your settings"
 echo "2. Edit .env with your credentials"
-echo "3. Run: python3 run_newspaper.py --onboarding"
-echo "4. Test: python3 run_newspaper.py --health"
-echo "5. Start GUI: python3 gui_app.py"
+echo "3. Run: python3 main.py"
+echo "4. Schedule with cron or Task Scheduler to run daily"
 echo ""
 echo "To activate the environment in the future:"
 echo "source venv/bin/activate"
