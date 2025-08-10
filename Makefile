@@ -14,9 +14,8 @@ venv:
 		$(PIP) install -r requirements.txt; \
 		$(PIP) install pytest; \
 	else \
-		python3 -m pip install -U pip --break-system-packages || true; \
-		python3 -m pip install -r requirements.txt --break-system-packages || true; \
-		python3 -m pip install pytest --break-system-packages || true; \
+		echo "ERROR: Could not create a virtual environment. Please create one manually (e.g., python3 -m venv .venv) and re-run make."; \
+		exit 1; \
 	fi
 
 install: venv
