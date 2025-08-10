@@ -4,7 +4,10 @@
 newspaper:
   # Base URL for constructing the download link
   url: "https://example.com"
-  # Path pattern appended to the base URL; {date} is formatted as YYYY-MM-DD
+  # Path pattern appended to the base URL for downloading the newspaper.
+  # The {date} placeholder will be replaced with the date of the newspaper to download.
+  # The format of {date} is controlled by the 'date_format' setting under 'general' (default: "%Y-%m-%d").
+  # For example, if date_format is "%Y-%m-%d" and the date is 2024-06-01, the path will be "newspaper/download/2024-06-01".
   download_path_pattern: "newspaper/download/{date}"
 
 # --- Storage Configuration ---
