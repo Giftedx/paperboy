@@ -34,16 +34,8 @@ echo "⬆️  Upgrading pip..."
 pip install --upgrade pip
 
 # Install basic requirements
-echo "📚 Installing basic requirements..."
-pip install -r requirements_basic.txt
-
-# Install development requirements
-echo "🔧 Installing development requirements..."
-pip install -r requirements.txt
-
-# Install development tools
-echo "🛠️  Installing development tools..."
-pip install pytest pytest-cov coverage black flake8
+echo "📚 Installing all dependencies for development..."
+pip install -e .[full,dev]
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
