@@ -7,9 +7,6 @@ Single implementation: PDF only using PyMuPDF (fitz) + Pillow.
 import logging
 import os
 
-from PIL import Image
-import fitz  # PyMuPDF
-
 logger = logging.getLogger(__name__)
 
 THUMBNAIL_WIDTH = 200
@@ -37,8 +34,18 @@ def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pd
         logger.error("Input file not found: %s", input_path)
         return False
 
-    doc = None
     try:
+        try:
+            import fitz  # PyMuPDF
+        except Exception as exc:
+            logger.error("PyMuPDF (fitz) is required for thumbnail generation but is not installed: %s", exc)
+            return False
+        try:
+            from PIL import Image
+        except Exception as exc:
+            logger.error("Pillow is required for thumbnail generation but is not installed: %s", exc)
+            return False
+
         doc = fitz.open(input_path)
         if doc.page_count <= 0:
             logger.error("No pages in PDF: %s", input_path)
@@ -64,8 +71,7 @@ def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pd
         logger.exception("Error creating thumbnail for %s: %s", input_path, e)
         return False
     finally:
-        if doc is not None:
-            try:
-                doc.close()
-            except Exception:
-                pass
+        try:
+            doc.close()  # type: ignore[name-defined]
+        except Exception:
+            pass

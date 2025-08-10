@@ -10,7 +10,7 @@ import logging
 import datetime
 from urllib.parse import urljoin
 
-import requests
+import config
 
 logger = logging.getLogger(__name__)
 
@@ -44,16 +44,26 @@ def login_and_download(base_url: str, save_path: str, target_date: str | None = 
             logger.info("File already exists locally: %s", existing_pdf)
             return True, existing_pdf
 
-    # Use configurable download path pattern
+    # Use configurable download path pattern, with a sensible default
+    # Example default: "newspaper/download/{date}"
+    download_path_pattern = config.config.get(("newspaper", "download_path_pattern"), "newspaper/download/{date}")
     download_path = download_path_pattern.format(date=target_date_str)
     download_url = urljoin(base_url.rstrip("/") + "/", download_path)
     logger.info("Downloading from: %s", download_url)
 
-    try:
-        if dry_run:
-            logger.info("[Dry Run] Would GET %s and save to %s", download_url, abs_save_path)
-            return True, f"{abs_save_path}.pdf"
+    # In dry-run mode, avoid network calls and simply simulate a saved PDF path
+    if dry_run:
+        logger.info("[Dry Run] Would GET %s and save to %s", download_url, abs_save_path)
+        return True, f"{abs_save_path}.pdf"
 
+    # Import requests only when needed to avoid hard dependency during dry-run
+    try:
+        import requests  # pylint: disable=import-outside-toplevel
+    except Exception as exc:
+        logger.error("'requests' is required for live downloads but is not available: %s", exc)
+        return False, "Missing dependency: requests"
+
+    try:
         # Simple GET; add a basic UA header
         response = requests.get(download_url, headers={"User-Agent": "NewspaperDownloader/1.0"}, timeout=(10, 60))
         response.raise_for_status()
@@ -68,12 +78,9 @@ def login_and_download(base_url: str, save_path: str, target_date: str | None = 
 
         logger.info("Saved newspaper to: %s", save_path_with_ext)
         return True, save_path_with_ext
-    except requests.RequestException as e:
-        logger.error("Request failed for %s: %s", download_url, e)
-        return False, f"Request error: {e}"
-    except OSError as e:
-        logger.error("Failed writing file %s: %s", abs_save_path, e)
-        return False, f"Filesystem error: {e}"
+    except Exception as e:  # requests.RequestException | OSError
+        logger.error("Download failed for %s: %s", download_url, e)
+        return False, f"Download error: {e}"
 
 
 if __name__ == '__main__':

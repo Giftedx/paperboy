@@ -7,18 +7,20 @@ Single implementation: SMTP only with inline thumbnail CID.
 import os
 import logging
 import smtplib
-import requests
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.utils import formataddr
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 import config
 
 logger = logging.getLogger(__name__)
 
 
 def _get_jinja_env():
+    try:
+        from jinja2 import Environment, FileSystemLoader, select_autoescape  # type: ignore
+    except Exception:
+        return None
     template_dir = config.config.get(('paths', 'template_dir'), 'templates')
     return Environment(
         loader=FileSystemLoader(template_dir),
@@ -29,6 +31,45 @@ def _get_jinja_env():
 def _is_valid_email(addr: str) -> bool:
     import re
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr))
+
+
+def _render_email_content(target_date, today_paper_url, past_papers, subject_template, template_name):
+    env = _get_jinja_env()
+    date_str = target_date.strftime('%Y-%m-%d')
+    recipient_name = None
+    # subject
+    if env is not None:
+        try:
+            subject = env.from_string(subject_template).render(date=date_str, recipient=recipient_name)
+        except Exception:
+            subject = f"Your Daily Newspaper - {date_str}"
+        try:
+            template = env.get_template(template_name)
+            html_body = template.render(
+                date=date_str,
+                today_paper_url=today_paper_url,
+                past_papers=past_papers,
+                thumbnail_cid="thumbnail",
+                recipient=recipient_name,
+                archive_summary=f"You have access to the last {len(past_papers)} days of newspapers."
+            )
+            return subject, html_body
+        except Exception:
+            pass
+    # Fallback simple HTML
+    subject = f"Your Daily Newspaper - {date_str}"
+    links_html = ''.join(f"<li><a href='{url}'>{d}</a></li>" for d, url in past_papers)
+    html_body = f"""
+    <html>
+      <body>
+        <p>Good day!</p>
+        <p>Your newspaper for {date_str} is ready: <a href="{today_paper_url}">Download</a></p>
+        <p>Recent archive:</p>
+        <ul>{links_html}</ul>
+      </body>
+    </html>
+    """
+    return subject, html_body
 
 
 def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, dry_run=False):
@@ -42,23 +83,18 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
         logger.error("No valid recipients found in config.")
         return False
 
-    recipient_name = None
-    if recipients and isinstance(recipients[0], str) and '@' in recipients[0]:
-        recipient_name = recipients[0].split('@')[0].replace('.', ' ').title()
-
-    archive_summary = f"You have access to the last {len(past_papers)} days of newspapers."
-
-    env = _get_jinja_env()
-    template = env.get_template(template_name)
-    subject = env.from_string(subject_template).render(date=target_date.strftime('%Y-%m-%d'), recipient=recipient_name)
-    html_body = template.render(
-        date=target_date.strftime('%Y-%m-%d'),
-        today_paper_url=today_paper_url,
-        past_papers=past_papers,
-        thumbnail_cid="thumbnail",
-        recipient=recipient_name,
-        archive_summary=archive_summary
+    subject, html_body = _render_email_content(
+        target_date, today_paper_url, past_papers, subject_template, template_name
     )
+
+    # In dry_run mode, do not perform any network or file I/O for thumbnail fetching
+    if dry_run:
+        logger.info("[Dry Run] Would send email to: %s", valid_recipients)
+        logger.info("Subject: %s", subject)
+        logger.info("Body: %s", html_body[:200] + '...')
+        if thumbnail_path:
+            logger.info("[Dry Run] Would attach thumbnail reference: %s", thumbnail_path)
+        return True
 
     thumbnail_data = None
     if thumbnail_path:
@@ -67,22 +103,20 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
                 thumbnail_data = f.read()
         elif thumbnail_path.startswith(('http://', 'https://')):
             try:
-                response = requests.get(thumbnail_path, timeout=30)
-                response.raise_for_status()
-                thumbnail_data = response.content
-                logger.info("Downloaded thumbnail from URL: %s", thumbnail_path)
+                try:
+                    import requests  # pylint: disable=import-outside-toplevel
+                except Exception:
+                    logger.warning("requests not available; skipping thumbnail download from URL: %s", thumbnail_path)
+                    requests = None  # type: ignore
+                if requests:
+                    response = requests.get(thumbnail_path, timeout=30)
+                    response.raise_for_status()
+                    thumbnail_data = response.content
+                    logger.info("Downloaded thumbnail from URL: %s", thumbnail_path)
             except Exception as e:
                 logger.warning("Failed to download thumbnail from URL %s: %s", thumbnail_path, e)
         else:
             logger.warning("Invalid thumbnail_path: %s (not a file or URL)", thumbnail_path)
-
-    if dry_run:
-        logger.info("[Dry Run] Would send email to: %s", valid_recipients)
-        logger.info("Subject: %s", subject)
-        logger.info("Body: %s", html_body[:200] + '...')
-        if thumbnail_data:
-            logger.info("[Dry Run] Would attach thumbnail: %s (size: %d bytes)", thumbnail_path, len(thumbnail_data))
-        return True
 
     try:
         return _send_via_smtp(sender, valid_recipients, subject, html_body, thumbnail_data)

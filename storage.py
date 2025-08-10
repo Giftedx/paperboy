@@ -8,8 +8,18 @@ Also manages local file cleanup.
 import os
 import tempfile
 import logging
-import boto3
-from botocore.exceptions import ClientError as BotoClientError
+
+try:
+    import boto3  # Optional; required only for live storage operations
+except Exception:
+    boto3 = None  # type: ignore
+
+try:
+    from botocore.exceptions import ClientError as BotoClientError  # Optional
+except Exception:  # pragma: no cover - fallback when botocore not present
+    class BotoClientError(Exception):  # type: ignore
+        pass
+
 import config
 
 logger = logging.getLogger(__name__)
@@ -20,6 +30,8 @@ class ClientError(Exception):
 
 # Lazy S3 client initialization
 def _get_s3_client():
+    if boto3 is None:
+        raise ClientError("boto3 is required for storage operations but is not installed.")
     endpoint_url = config.config.get(('storage', 'endpoint_url'))
     aws_access_key_id = config.config.get(('storage', 'access_key_id'))
     aws_secret_access_key = config.config.get(('storage', 'secret_access_key'))
