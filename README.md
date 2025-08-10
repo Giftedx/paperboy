@@ -44,9 +44,8 @@ Minimum required keys in `config.yaml`:
 
 ```yaml
 newspaper:
-  url: "https://example.com/newspaper"  # Base site URL
-  username: "your_username"             # Put secrets in .env for real
-  password: "your_password"
+  url: "https://example.com"  # Base site URL
+  download_path_pattern: "newspaper/download/{date}"
 
 storage:
   endpoint_url: "https://<ACCOUNT_ID>.r2.cloudflarestorage.com"

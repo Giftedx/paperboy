@@ -12,12 +12,12 @@ Get the Newspaper Emailer running in 5 minutes (simplified version).
 git clone <your-repo-url>
 cd newspaper-emailer
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
 ## 2. Configure
-Create `config.yaml` and `.env` in the project root. See `README.md` or `LOCAL_SETUP.md` for example keys. Minimal examples:
+Create `config.yaml` and `.env` in the project root. Minimal example:
 ```yaml
 newspaper:
   url: "https://example.com"
@@ -44,7 +44,7 @@ email:
 ```bash
 python3 main.py
 ```
-This will load configuration, simulate or perform the run depending on your settings, and log to `logs/newspaper_emailer.log`.
+This will load configuration and run the pipeline. Logs go to `logs/newspaper_emailer.log`.
 
 ## 4. Schedule (Optional)
 - Linux/macOS (cron): `0 6 * * * /path/to/.venv/bin/python /path/to/main.py`

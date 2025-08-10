@@ -61,8 +61,7 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
 # Validation rules: 'str' (non-empty string), 'int', 'bool', 'url' (basic http/https check), 'email_list'
 CRITICAL_CONFIG_KEYS = [
     (("newspaper", "url"), 'url'),
-    (("newspaper", "username"), 'str'),
-    (("newspaper", "password"), 'str'),  # Presence checked, value redacted
+    # Removed username/password to reflect simplified no-login flow
     (("email", "recipients"), 'email_list'),
     (("email", "sender"), 'str'),      # Could be enhanced for actual email format
     (("email", "smtp_host"), 'str'),
