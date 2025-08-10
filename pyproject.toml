@@ -45,7 +45,7 @@ dev = [
 [tool.setuptools]
 include-package-data = true
 py-modules = [
-  "main", "config", "website", "storage", "email_sender", "thumbnail", "__init__"
+  "main", "config", "__init__"
 ]
 
 [tool.setuptools.package-data]
