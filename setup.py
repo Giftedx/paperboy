@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""
+Setup script for the Automated Newspaper Downloader & Emailer System.
+"""
+
+from setuptools import setup, find_packages
+import os
+
+# Read the README file for long description
+def read_readme():
+    with open("README.md", "r", encoding="utf-8") as fh:
+        return fh.read()
+
+# Read requirements from file
+def read_requirements(filename):
+    with open(filename, "r", encoding="utf-8") as fh:
+        return [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+
+setup(
+    name="newspaper-emailer",
+    version="1.0.0",
+    author="Newspaper Emailer Team",
+    description="Automated newspaper downloader and emailer system",
+    long_description=read_readme(),
+    long_description_content_type="text/markdown",
+    url="https://github.com/yourusername/newspaper-emailer",
+    packages=find_packages(),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: End Users/Desktop",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+    ],
+    python_requires=">=3.8",
+    install_requires=read_requirements("requirements_basic.txt"),
+    extras_require={
+        "full": read_requirements("requirements.txt"),
+        "dev": [
+            "pytest>=8.0.0",
+            "pytest-cov>=6.0.0",
+            "coverage>=7.0.0",
+            "black",
+            "flake8"
+        ],
+    },
+    entry_points={
+        "console_scripts": [
+            "newspaper-emailer=run_newspaper:main_entry",
+        ],
+    },
+    include_package_data=True,
+    package_data={
+        "": ["templates/*.html", "*.yaml", "*.md"],
+    },
+)

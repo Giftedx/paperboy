@@ -48,11 +48,29 @@ For public access to your files, you'll need to set up:
 
 ## Step 3: Configure the Application
 
-1. Edit the configuration file at `~/.newspaper/config.yaml` with your settings:
-   - Update your newspaper website URL, username, and password
-   - Configure your storage provider settings (R2 or S3)
-   - Configure your email service settings (SendGrid or Mailgun)
-   - Update the recipient email addresses
+1. Configure the application using one of these methods:
+
+   **Option A: Use the onboarding wizard (Recommended)**
+   ```bash
+   python3 run_newspaper.py --onboarding
+   ```
+   This will create initial `config.yaml` and `.env` files in the project root.
+
+   **Option B: Manual configuration**
+   Edit the configuration files in the project root:
+   - `config.yaml` - General settings (see example in the file)
+   - `.env` - Sensitive credentials (create this file)
+
+   Required settings:
+   - Newspaper website URL, username, and password
+   - Storage provider settings (R2 or S3)
+   - Email service settings (SendGrid or Mailgun)
+   - Recipient email addresses
+
+**Environment Variable Overrides:**
+You can override configuration file paths using environment variables:
+- `NEWSPAPER_CONFIG` - Path to config.yaml file
+- `NEWSPAPER_ENV` - Path to .env file
 
 ## Step 4: Test the Application
 
@@ -95,9 +113,24 @@ Set up a cron job to run the script daily:
    0 6 * * * /usr/bin/python /path/to/your/run_newspaper.py
    ```
 
+### Alternative: Use the Built-in GUI Scheduler
+
+The application includes a web-based GUI with a built-in scheduler:
+
+1. Start the GUI:
+   ```bash
+   python3 gui_app.py
+   ```
+
+2. Open your browser to `http://localhost:5000`
+
+3. Navigate to the "Schedule" section to configure automated runs
+
+**Note:** For production environments, system-level schedulers (cron/Task Scheduler) are recommended for better reliability.
+
 ## Troubleshooting
 
-- Check the log file at `~/.newspaper/newspaper.log` for detailed error messages
+- Check the log file at `newspaper_emailer.log` in the project root for detailed error messages
 - Ensure your newspaper website hasn't changed its login or download process
 - Verify your cloud storage credentials have proper permissions
 - Check your email service dashboard for errors or limits
