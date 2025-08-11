@@ -119,6 +119,10 @@ Use your system scheduler (cron, Task Scheduler) to run daily. Example cron:
 python -c "import requests, inspect; print(getattr(requests, '__file__', 'builtin'))"
 ```
 
+- Environment toggles:
+  - `REQUESTS_FALLBACK_DISABLE=1` → Do not use the fallback; raise ImportError if the real library is absent.
+  - `REQUESTS_FALLBACK_FORCE=1` → Force using the fallback even if the real library is installed (useful for testing).
+
 ## Customizing the email template
 
 - The HTML template lives at `templates/email_template.html` and is rendered with Jinja2.

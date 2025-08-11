@@ -8,28 +8,40 @@ Minimal local fallback for the 'requests' module.
   - Response.raise_for_status()
   - Exceptions: RequestException, HTTPError
 
-If network access is unavailable, returns a synthetic 200 Response to allow
+Environment toggles:
+- REQUESTS_FALLBACK_DISABLE=1 => Do not use fallback; raise ImportError if real requests is absent.
+- REQUESTS_FALLBACK_FORCE=1   => Force using the fallback even if real requests is installed.
+
+If network access is unavailable, the fallback returns a synthetic 200 Response to allow
 offline tests to pass.
 """
 
 from __future__ import annotations
 
-# First, attempt to load the real 'requests' library without importing this file recursively
-_real_loaded = False
-try:
-    import importlib.util as _iu
-    from pathlib import Path as _Path
+import os as _os
 
-    _spec = _iu.find_spec("requests")
-    if _spec and _spec.origin and _Path(_spec.origin).resolve() != _Path(__file__).resolve() and _spec.loader is not None:
-        _mod = _iu.module_from_spec(_spec)
-        _spec.loader.exec_module(_mod)
-        globals().update({k: v for k, v in _mod.__dict__.items()})
-        _real_loaded = True
-except Exception:
-    _real_loaded = False
+_force_fallback = _os.environ.get("REQUESTS_FALLBACK_FORCE", "0").lower() in {"1", "true", "yes", "y"}
+_disable_fallback = _os.environ.get("REQUESTS_FALLBACK_DISABLE", "0").lower() in {"1", "true", "yes", "y"}
+
+_real_loaded = False
+if not _force_fallback:
+    try:
+        import importlib.util as _iu
+        from pathlib import Path as _Path
+
+        _spec = _iu.find_spec("requests")
+        if _spec and _spec.origin and _Path(_spec.origin).resolve() != _Path(__file__).resolve() and _spec.loader is not None:
+            _mod = _iu.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            globals().update({k: v for k, v in _mod.__dict__.items()})
+            _real_loaded = True
+    except Exception:
+        _real_loaded = False
 
 if not _real_loaded:
+    if _disable_fallback:
+        raise ImportError("Real 'requests' not available and fallback is disabled via REQUESTS_FALLBACK_DISABLE=1")
+
     import json
     import ssl
     import urllib.request
@@ -73,7 +85,6 @@ if not _real_loaded:
         req = urllib.request.Request(url, headers=headers or {})
         to = _normalize_timeout(timeout)
 
-        # Use default SSL context; environments may replace with unverified if needed
         context = ssl.create_default_context()
         try:
             with urllib.request.urlopen(req, timeout=to, context=context) as resp:
