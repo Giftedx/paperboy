@@ -4,7 +4,7 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 PYTEST := $(VENV)/bin/pytest
 
-.PHONY: venv install run run-dry test clean which-requests
+.PHONY: venv install run run-dry test clean which-requests healthcheck
 
 venv:
 	# Try to create venv; ignore failure (e.g., ensurepip not available)
@@ -46,3 +46,6 @@ clean:
 
 which-requests:
 	@python3 which_requests.py
+
+healthcheck:
+	@python3 healthcheck.py
