@@ -30,11 +30,12 @@ if not _force_fallback:
         from pathlib import Path as _Path
 
         _spec = _iu.find_spec("requests")
-        if _spec and _spec.origin and _Path(_spec.origin).resolve() != _Path(__file__).resolve() and _spec.loader is not None:
-            _mod = _iu.module_from_spec(_spec)
-            _spec.loader.exec_module(_mod)
-            globals().update({k: v for k, v in _mod.__dict__.items()})
-            _real_loaded = True
+        if _spec and _spec.origin is not None and _spec.loader is not None:
+            if _Path(_spec.origin).resolve() != _Path(__file__).resolve():
+                _mod = _iu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                globals().update({k: v for k, v in _mod.__dict__.items()})
+                _real_loaded = True
     except Exception:
         _real_loaded = False
 
