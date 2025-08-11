@@ -1,3 +1,89 @@
 2025-08-10 20:58:54,613 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
 2025-08-10 20:58:54,623 - website - INFO - Downloading from: https://example.com/newspaper/download/2025-01-02
 2025-08-10 20:58:54,623 - website - INFO - [Dry Run] Would GET https://example.com/newspaper/download/2025-01-02 and save to /tmp/pytest-of-ubuntu/pytest-0/test_login_and_download_dry_ru0/2025-01-02_newspaper
+2025-08-11 01:44:23,149 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-11 01:44:23,172 - __main__ - INFO - Starting main.py directly for testing or manual execution.
+2025-08-11 01:44:23,172 - __main__ - INFO - Running main pipeline with: Target Date='2025-08-11', Dry Run=True, Force Download=False
+2025-08-11 01:44:23,173 - config - INFO - .env file not found at '.env'. Skipping .env load.
+2025-08-11 01:44:23,174 - config - INFO - Loaded YAML configuration from 'config.yaml'.
+2025-08-11 01:44:23,174 - config - INFO - Critical configuration validation successful.
+2025-08-11 01:44:23,174 - config - INFO - --- Configuration Summary ---
+2025-08-11 01:44:23,174 - config - INFO - Source: .env file not found or not loaded from '.env'.
+2025-08-11 01:44:23,174 - config - INFO - Source: YAML file loaded from 'config.yaml'.
+2025-08-11 01:44:23,174 - config - INFO - Effective critical settings (priority: YAML > Environment > Default):
+2025-08-11 01:44:23,174 - config - INFO -   newspaper.url: https://example.com
+2025-08-11 01:44:23,174 - config - INFO -   email.recipients: ['recipient1@example.com']
+2025-08-11 01:44:23,174 - config - INFO -   email.sender: sender@example.com
+2025-08-11 01:44:23,174 - config - INFO -   email.smtp_host: smtp.example.com
+2025-08-11 01:44:23,174 - config - INFO -   email.smtp_port: 587
+2025-08-11 01:44:23,174 - config - INFO -   email.smtp_user: ********
+2025-08-11 01:44:23,174 - config - INFO -   email.smtp_pass: ********
+2025-08-11 01:44:23,174 - config - INFO -   storage.endpoint_url: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+2025-08-11 01:44:23,175 - config - INFO -   storage.access_key_id: ********
+2025-08-11 01:44:23,175 - config - INFO -   storage.secret_access_key: ********
+2025-08-11 01:44:23,175 - config - INFO -   storage.bucket: newspaper-storage
+2025-08-11 01:44:23,175 - config - INFO -   paths.download_dir: downloads
+2025-08-11 01:44:23,175 - config - INFO - -----------------------------
+2025-08-11 01:45:27,417 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-11 01:45:27,441 - config - INFO - .env file not found at '.env'. Skipping .env load.
+2025-08-11 01:45:27,442 - config - INFO - Loaded YAML configuration from 'config.yaml'.
+2025-08-11 01:45:27,442 - config - INFO - Critical configuration validation successful.
+2025-08-11 01:45:27,442 - config - INFO - --- Configuration Summary ---
+2025-08-11 01:45:27,442 - config - INFO - Source: .env file not found or not loaded from '.env'.
+2025-08-11 01:45:27,442 - config - INFO - Source: YAML file loaded from 'config.yaml'.
+2025-08-11 01:45:27,442 - config - INFO - Effective critical settings (priority: YAML > Environment > Default):
+2025-08-11 01:45:27,442 - config - INFO -   newspaper.url: https://example.com
+2025-08-11 01:45:27,442 - config - INFO -   email.recipients: ['recipient1@example.com']
+2025-08-11 01:45:27,442 - config - INFO -   email.sender: sender@example.com
+2025-08-11 01:45:27,442 - config - INFO -   email.smtp_host: smtp.example.com
+2025-08-11 01:45:27,442 - config - INFO -   email.smtp_port: 587
+2025-08-11 01:45:27,442 - config - INFO -   email.smtp_user: ********
+2025-08-11 01:45:27,442 - config - INFO -   email.smtp_pass: ********
+2025-08-11 01:45:27,442 - config - INFO -   storage.endpoint_url: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+2025-08-11 01:45:27,443 - config - INFO -   storage.access_key_id: ********
+2025-08-11 01:45:27,443 - config - INFO -   storage.secret_access_key: ********
+2025-08-11 01:45:27,443 - config - INFO -   storage.bucket: newspaper-storage
+2025-08-11 01:45:27,443 - config - INFO -   paths.download_dir: downloads
+2025-08-11 01:45:27,443 - config - INFO - -----------------------------
+2025-08-11 01:46:15,736 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-11 01:46:15,757 - config - INFO - .env file not found at '.env'. Skipping .env load.
+2025-08-11 01:46:15,759 - config - INFO - Loaded YAML configuration from 'config.yaml'.
+2025-08-11 01:46:15,759 - config - INFO - Critical configuration validation successful.
+2025-08-11 01:46:15,760 - config - INFO - --- Configuration Summary ---
+2025-08-11 01:46:15,760 - config - INFO - Source: .env file not found or not loaded from '.env'.
+2025-08-11 01:46:15,760 - config - INFO - Source: YAML file loaded from 'config.yaml'.
+2025-08-11 01:46:15,760 - config - INFO - Effective critical settings (priority: YAML > Environment > Default):
+2025-08-11 01:46:15,760 - config - INFO -   newspaper.url: https://example.com
+2025-08-11 01:46:15,760 - config - INFO -   email.recipients: ['recipient1@example.com']
+2025-08-11 01:46:15,760 - config - INFO -   email.sender: sender@example.com
+2025-08-11 01:46:15,760 - config - INFO -   email.smtp_host: smtp.example.com
+2025-08-11 01:46:15,760 - config - INFO -   email.smtp_port: 587
+2025-08-11 01:46:15,760 - config - INFO -   email.smtp_user: ********
+2025-08-11 01:46:15,760 - config - INFO -   email.smtp_pass: ********
+2025-08-11 01:46:15,760 - config - INFO -   storage.endpoint_url: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+2025-08-11 01:46:15,760 - config - INFO -   storage.access_key_id: ********
+2025-08-11 01:46:15,760 - config - INFO -   storage.secret_access_key: ********
+2025-08-11 01:46:15,760 - config - INFO -   storage.bucket: newspaper-storage
+2025-08-11 01:46:15,760 - config - INFO -   paths.download_dir: downloads
+2025-08-11 01:46:15,760 - config - INFO - -----------------------------
+2025-08-11 01:46:42,710 - config - INFO - Logging configured to level 'INFO', writing to 'logs/app.log'.
+2025-08-11 01:46:42,729 - config - INFO - .env file not found at '.env'. Skipping .env load.
+2025-08-11 01:46:42,731 - config - INFO - Loaded YAML configuration from 'config.yaml'.
+2025-08-11 01:46:42,731 - config - INFO - Critical configuration validation successful.
+2025-08-11 01:46:42,731 - config - INFO - --- Configuration Summary ---
+2025-08-11 01:46:42,731 - config - INFO - Source: .env file not found or not loaded from '.env'.
+2025-08-11 01:46:42,731 - config - INFO - Source: YAML file loaded from 'config.yaml'.
+2025-08-11 01:46:42,732 - config - INFO - Effective critical settings (priority: YAML > Environment > Default):
+2025-08-11 01:46:42,732 - config - INFO -   newspaper.url: https://example.com
+2025-08-11 01:46:42,732 - config - INFO -   email.recipients: ['recipient1@example.com']
+2025-08-11 01:46:42,732 - config - INFO -   email.sender: sender@example.com
+2025-08-11 01:46:42,732 - config - INFO -   email.smtp_host: smtp.example.com
+2025-08-11 01:46:42,732 - config - INFO -   email.smtp_port: 587
+2025-08-11 01:46:42,732 - config - INFO -   email.smtp_user: ********
+2025-08-11 01:46:42,732 - config - INFO -   email.smtp_pass: ********
+2025-08-11 01:46:42,732 - config - INFO -   storage.endpoint_url: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+2025-08-11 01:46:42,732 - config - INFO -   storage.access_key_id: ********
+2025-08-11 01:46:42,732 - config - INFO -   storage.secret_access_key: ********
+2025-08-11 01:46:42,732 - config - INFO -   storage.bucket: newspaper-storage
+2025-08-11 01:46:42,732 - config - INFO -   paths.download_dir: downloads
+2025-08-11 01:46:42,732 - config - INFO - -----------------------------
