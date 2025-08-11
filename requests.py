@@ -62,7 +62,7 @@ if not _real_loaded:
         def json(self) -> Any:
             try:
                 return json.loads(self.content.decode("utf-8"))
-            except Exception as exc:
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
                 raise ValueError("Invalid JSON in response content") from exc
 
         def raise_for_status(self) -> None:
