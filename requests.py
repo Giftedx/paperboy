@@ -83,6 +83,11 @@ if not _real_loaded:
         return None
 
     def get(url: str, headers: Optional[Dict[str, str]] = None, timeout: Optional[Union[float, int, Tuple[Union[float, int], Union[float, int]]]] = None) -> Response:
+        # Input validation for url
+        if not isinstance(url, str) or not url.strip():
+            raise RequestException("URL must be a non-empty string")
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise RequestException(f"Malformed URL: {url!r}")
         req = urllib.request.Request(url, headers=headers or {})
         to = _normalize_timeout(timeout)
 
