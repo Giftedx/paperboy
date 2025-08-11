@@ -92,6 +92,6 @@ if not _real_loaded:
                 data = resp.read()
                 hdrs = {k: v for k, v in resp.headers.items()} if getattr(resp, "headers", None) else {}
                 return Response(status, data, hdrs)
-        except Exception:
+        except urllib.error.URLError:
             # Offline-safe synthetic 200 OK
             return Response(200, b"", {"Content-Type": "application/octet-stream"})
