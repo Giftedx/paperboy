@@ -77,7 +77,7 @@ if not _real_loaded:
         if isinstance(timeout, tuple) and timeout:
             try:
                 return float(timeout[0])
-            except Exception:
+            except (ValueError, TypeError, IndexError):
                 return None
         return None
 
