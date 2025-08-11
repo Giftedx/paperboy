@@ -112,6 +112,26 @@ def test_directory_structure():
     return passed >= total * 0.8
 
 
+def environment_diagnostics():
+    print_status("Environment diagnostics...", "INFO")
+    try:
+        import requests  # type: ignore
+        path = getattr(requests, '__file__', None)
+        path_str = str(path) if path else 'builtin'
+        is_fallback = False
+        try:
+            resolved = str(Path(path_str).resolve()) if path else path_str
+            is_fallback = (Path(resolved).name == 'requests.py') and ('site-packages' not in resolved)
+            path_str = resolved
+        except Exception:
+            pass
+        impl = 'fallback' if is_fallback else 'real'
+        print_status(f"requests implementation: {impl} ({path_str})", "INFO")
+    except Exception as e:
+        print_status(f"requests import failed: {e}", "WARNING")
+    return True
+
+
 def main():
     print_status("Starting simplified test suite...", "INFO")
     print()
@@ -120,6 +140,7 @@ def main():
         ("Basic functionality", test_basic_functionality),
         ("Configuration files", test_configuration_files),
         ("Directory structure", test_directory_structure),
+        ("Environment diagnostics", environment_diagnostics),
     ]
 
     results = []
