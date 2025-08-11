@@ -45,12 +45,11 @@ def main() -> int:
     path = getattr(requests, "__file__", None)
     path_str = str(path) if path else None
 
-    is_fallback = False
+    # Detect fallback implementation by checking for a unique module attribute
+    is_fallback = getattr(requests, "__fallback__", False)
     if path_str:
         try:
             resolved = str(Path(path_str).resolve())
-            # If the module resolves to a top-level requests.py (this repo), treat as fallback
-            is_fallback = Path(resolved).name == "requests.py" and "site-packages" not in resolved
             path_str = resolved
         except Exception:
             # If resolution fails, keep original
