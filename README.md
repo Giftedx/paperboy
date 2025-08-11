@@ -106,6 +106,23 @@ Use your system scheduler (cron, Task Scheduler) to run daily. Example cron:
 - Verify SMTP credentials and that your sender is allowed to send
 - Ensure the expected download URL is valid for your newspaper site
 
+### Offline-friendly 'requests' fallback
+
+- In restricted environments where installing packages is not possible, this repo includes a minimal local `requests.py` fallback.
+- Behavior:
+  - If the real `requests` library is installed, it is used automatically.
+  - If not, the fallback provides a minimal `requests.get()` and `Response` to allow tests and dry-runs to pass. When offline, it may return a synthetic HTTP 200 response with empty content.
+- Production recommendation: install real `requests` via `pip install -r requirements.txt`. You may remove `requests.py` if you prefer to avoid the fallback.
+- To see which implementation is active:
+
+```bash
+python -c "import requests, inspect; print(getattr(requests, '__file__', 'builtin'))"
+```
+
+- Environment toggles:
+  - `REQUESTS_FALLBACK_DISABLE=1` → Do not use the fallback; raise ImportError if the real library is absent.
+  - `REQUESTS_FALLBACK_FORCE=1` → Force using the fallback even if the real library is installed (useful for testing).
+
 ## Customizing the email template
 
 - The HTML template lives at `templates/email_template.html` and is rendered with Jinja2.

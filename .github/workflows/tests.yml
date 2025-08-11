@@ -26,3 +26,13 @@ jobs:
       - name: Run lightweight tests
         run: |
           python run_tests.py
+
+      - name: Report requests implementation
+        run: |
+          python which_requests.py
+
+      - name: Run comprehensive healthcheck (dry-run)
+        env:
+          MAIN_PY_DRY_RUN: 'true'
+        run: |
+          python healthcheck.py
