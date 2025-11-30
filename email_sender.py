@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Email sending module (simplified)
+Email sending module (simplified).
+
 Single implementation: SMTP only with inline thumbnail CID.
 """
 
@@ -17,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_jinja_env():
+    """Initializes the Jinja2 environment for template rendering.
+
+    Returns:
+        jinja2.Environment | None: The Jinja2 environment, or None if jinja2 is not installed.
+    """
     try:
         from jinja2 import Environment, FileSystemLoader, select_autoescape  # type: ignore
     except Exception:
@@ -29,11 +35,33 @@ def _get_jinja_env():
 
 
 def _is_valid_email(addr: str) -> bool:
+    """Basic email validation regex.
+
+    Args:
+        addr (str): The email address to validate.
+
+    Returns:
+        bool: True if the address matches the basic pattern.
+    """
     import re
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr))
 
 
 def _render_email_content(target_date, today_paper_url, past_papers, subject_template, template_name):
+    """Renders the email subject and body.
+
+    Uses Jinja2 if available, otherwise falls back to a simple HTML string.
+
+    Args:
+        target_date (date): The date of the newspaper.
+        today_paper_url (str): The URL of today's downloaded newspaper.
+        past_papers (list): List of tuples (date_str, url) for past newspapers.
+        subject_template (str): Jinja2 template for the subject line.
+        template_name (str): The filename of the HTML body template.
+
+    Returns:
+        tuple: (subject (str), html_body (str))
+    """
     env = _get_jinja_env()
     date_str = target_date.strftime('%Y-%m-%d')
     recipient_name = None
@@ -73,6 +101,18 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
 
 
 def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, dry_run=False):
+    """Prepares and sends the daily newspaper email.
+
+    Args:
+        target_date (date): The date of the newspaper.
+        today_paper_url (str): Cloud URL for the newspaper file.
+        past_papers (list): List of (date, url) tuples for previous editions.
+        thumbnail_path (str | None): Path to local file or URL of the thumbnail image.
+        dry_run (bool): If True, simulate sending without network usage.
+
+    Returns:
+        bool: True if sent (or simulated) successfully, False otherwise.
+    """
     sender = config.config.get(('email', 'sender'))
     recipients = config.config.get(('email', 'recipients'), [])
     subject_template = config.config.get(('email', 'subject_template'), 'Your Daily Newspaper - {{ date }}')
@@ -126,6 +166,21 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
 
 
 def _send_via_smtp(sender, recipients, subject, html_body, thumbnail_data):
+    """Sends the constructed email via SMTP.
+
+    Args:
+        sender (str): The 'From' address.
+        recipients (list): List of 'To' addresses.
+        subject (str): Email subject.
+        html_body (str): HTML content of the email.
+        thumbnail_data (bytes | None): Raw image data for inline attachment.
+
+    Returns:
+        bool: True on success.
+
+    Raises:
+        Exception: On SMTP failure.
+    """
     smtp_host = config.config.get(('email', 'smtp_host'))
     smtp_port = int(config.config.get(('email', 'smtp_port'), 587))
     smtp_user = config.config.get(('email', 'smtp_user'))
@@ -159,6 +214,16 @@ def _send_via_smtp(sender, recipients, subject, html_body, thumbnail_data):
 
 
 def send_alert_email(subject, message, dry_run=False):
+    """Sends a plain text alert email to the admin.
+
+    Args:
+        subject (str): The subject line.
+        message (str): The plain text message body.
+        dry_run (bool): If True, simulate sending.
+
+    Returns:
+        bool: True if sent successfully, False otherwise.
+    """
     sender = config.config.get(('email', 'sender'))
     alert_recipient = config.config.get(('email', 'alert_recipient'), sender)
     if not _is_valid_email(alert_recipient):

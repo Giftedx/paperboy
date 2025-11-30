@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Simplified website interaction module.
+
 Single implementation: constructs a download URL and fetches via requests.
 No Playwright, no scraping fallbacks.
 """
@@ -16,10 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 def login_and_download(base_url: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
-    """Download the newspaper for the given date using a simple GET.
+    """Downloads the newspaper for the given date using a simple GET.
 
-    - Expects the newspaper to be available at base_url/newspaper/download/YYYY-MM-DD
-    - Returns (success: bool, result: str). On success, result is the full local file path.
+    Expects the newspaper to be available at a predictable URL pattern relative to base_url.
+
+    Args:
+        base_url (str): The base URL of the newspaper website.
+        save_path (str): The local path (without extension) to save the downloaded file.
+        target_date (str | None): The date to download in YYYY-MM-DD format. Defaults to today.
+        dry_run (bool): If True, simulate download without network activity.
+        force_download (bool): If True, overwrite local file if it exists.
+
+    Returns:
+        tuple: (success (bool), result_path_or_error (str))
     """
     # Resolve date
     if target_date is None:

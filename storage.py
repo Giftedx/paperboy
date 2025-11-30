@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Storage interaction module
+Storage interaction module.
+
 Handles uploading and deleting files from cloud storage (AWS S3 or compatible like Cloudflare R2).
 Also manages local file cleanup.
 """
@@ -18,6 +19,7 @@ try:
     from botocore.exceptions import ClientError as BotoClientError  # Optional
 except Exception:  # pragma: no cover - fallback when botocore not present
     class BotoClientError(Exception):  # type: ignore
+        """Placeholder for botocore.exceptions.ClientError if library is missing."""
         pass
 
 import config
@@ -26,10 +28,19 @@ logger = logging.getLogger(__name__)
 
 # Custom exception for storage errors
 class ClientError(Exception):
+    """Custom exception raised for storage-related errors."""
     pass
 
 # Lazy S3 client initialization
 def _get_s3_client():
+    """Initializes and returns a boto3 S3 client using configured credentials.
+
+    Returns:
+        boto3.client: The configured S3 client.
+
+    Raises:
+        ClientError: If boto3 is not installed.
+    """
     if boto3 is None:
         raise ClientError("boto3 is required for storage operations but is not installed.")
     endpoint_url = config.config.get(('storage', 'endpoint_url'))
@@ -45,10 +56,23 @@ def _get_s3_client():
     )
 
 def _get_bucket():
+    """Retrieves the bucket name from configuration.
+
+    Returns:
+        str: The configured bucket name.
+    """
     return config.config.get(('storage', 'bucket'))
 
 # List all files in the storage bucket
 def list_storage_files():
+    """Lists all files in the configured storage bucket.
+
+    Returns:
+        list: A list of filenames (keys) in the bucket.
+
+    Raises:
+        ClientError: If the S3 list operation fails.
+    """
     s3 = _get_s3_client()
     bucket = _get_bucket()
     try:
@@ -62,6 +86,15 @@ def list_storage_files():
 
 # Generate a presigned URL for a file
 def get_file_url(filename, expires_in=86400):
+    """Generates a presigned URL for a file in storage.
+
+    Args:
+        filename (str): The name (key) of the file.
+        expires_in (int): The validity duration of the URL in seconds.
+
+    Returns:
+        str | None: The presigned URL, or None if generation failed.
+    """
     s3 = _get_s3_client()
     bucket = _get_bucket()
     try:
@@ -78,6 +111,15 @@ def get_file_url(filename, expires_in=86400):
 
 # Delete a file from storage (supports dry_run)
 def delete_from_storage(filename, dry_run=False):
+    """Deletes a file from storage.
+
+    Args:
+        filename (str): The name (key) of the file to delete.
+        dry_run (bool): If True, simulate deletion.
+
+    Returns:
+        bool: True if deletion was successful (or simulated), False otherwise.
+    """
     s3 = _get_s3_client()
     bucket = _get_bucket()
     if dry_run:
@@ -93,6 +135,16 @@ def delete_from_storage(filename, dry_run=False):
 
 # Upload a file to storage (supports dry_run)
 def upload_to_storage(local_file_path, s3_key, dry_run=False):
+    """Uploads a local file to storage.
+
+    Args:
+        local_file_path (str): The path to the local file.
+        s3_key (str): The destination key (filename) in the bucket.
+        dry_run (bool): If True, simulate upload.
+
+    Returns:
+        bool: True if upload was successful (or simulated), False otherwise.
+    """
     s3 = _get_s3_client()
     bucket = _get_bucket()
     if dry_run:
@@ -111,6 +163,14 @@ def upload_to_storage(local_file_path, s3_key, dry_run=False):
 
 # Download a file from storage to a local temp file
 def download_to_temp(filename):
+    """Downloads a file from storage to a temporary local file.
+
+    Args:
+        filename (str): The name (key) of the file to download.
+
+    Returns:
+        str | None: The path to the local temporary file, or None on failure.
+    """
     s3 = _get_s3_client()
     bucket = _get_bucket()
     try:
