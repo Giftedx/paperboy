@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """
 Simple test script to verify that the bug fixes work correctly.
+
+This script imports key modules and performs basic runtime checks to ensure
+imports function as expected and the configuration system initializes correctly.
 """
 
 import sys
 import os
 
 def test_imports():
-    """Test that all modules can be imported without errors."""
+    """Test that all modules can be imported without errors.
+
+    Returns:
+        bool: True if all imports succeed, False otherwise.
+    """
     print("Testing imports...")
     
     try:
@@ -55,7 +62,11 @@ def test_imports():
     return True
 
 def test_config_loading():
-    """Test that configuration can be loaded without critical errors."""
+    """Test that configuration can be loaded without critical errors.
+
+    Returns:
+        bool: True if configuration loading behaves as expected (even if it fails validation).
+    """
     print("\nTesting configuration loading...")
     
     try:
@@ -82,7 +93,11 @@ def test_config_loading():
         return False
 
 def test_email_sender_requests():
-    """Test that email_sender can use requests module."""
+    """Test that email_sender can use requests module.
+
+    Returns:
+        bool: True if requests is accessible and functional.
+    """
     print("\nTesting email_sender requests functionality...")
     
     try:
@@ -109,7 +124,11 @@ def test_email_sender_requests():
         return False
 
 def main():
-    """Run all tests."""
+    """Run all verification tests.
+
+    Returns:
+        int: 0 if all tests pass, 1 otherwise.
+    """
     print("Running bug fix verification tests...\n")
     
     tests = [

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Project healthcheck script.
-Runs:
-  1) run_tests.py
-  2) which_requests.py
-  3) Dry-run of main.py
+
+Runs a sequence of checks to verify the integrity and readiness of the system:
+  1) run_tests.py: Static analysis and structure checks.
+  2) which_requests.py: Verifies the requests library implementation.
+  3) main.py (dry-run): Simulates the pipeline execution.
 
 Exits non-zero if any step fails.
 """
@@ -18,6 +19,15 @@ from typing import List, Tuple
 
 
 def run_cmd(cmd: List[str], env: dict | None = None) -> Tuple[int, str]:
+    """Runs a shell command and captures its output.
+
+    Args:
+        cmd (List[str]): The command and its arguments.
+        env (dict | None): Environment variables to use.
+
+    Returns:
+        Tuple[int, str]: A tuple containing the return code and the combined stdout/stderr output.
+    """
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
         out, _ = proc.communicate()
@@ -30,6 +40,11 @@ def run_cmd(cmd: List[str], env: dict | None = None) -> Tuple[int, str]:
 
 
 def main() -> int:
+    """Main healthcheck execution routine.
+
+    Returns:
+        int: 0 if all checks pass, 1 otherwise.
+    """
     steps = []
 
     # 1) run_tests.py

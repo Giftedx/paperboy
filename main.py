@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
 Main pipeline orchestrator for the newspaper downloader and emailer system.
+
+This module coordinates the entire workflow: loading configuration, determining the target date,
+downloading the newspaper, generating a thumbnail, uploading to cloud storage,
+sending the email, and performing cleanup.
 """
 
 import os
@@ -12,11 +16,11 @@ import time
 import website
 import storage
 import email_sender
-import config # Assuming config.py has been enhanced
-import thumbnail # Assuming thumbnail.py has been enhanced
+import config
+import thumbnail
 
 # Logging setup
-logger = logging.getLogger(__name__) # Use standard logging
+logger = logging.getLogger(__name__)
 DATE_FORMAT = '%Y-%m-%d' 
 FILENAME_TEMPLATE = "{date}_newspaper.{format}" 
 THUMBNAIL_FILENAME_TEMPLATE = "{date}_thumbnail.{format}"
@@ -25,10 +29,21 @@ STATUS_FILE = 'pipeline_status.json'
 
 # --- Status Update Function (Consolidated) ---
 def update_status(step, status, message=None, percent=None, eta=None, explainer=None):
-    """Enhanced status update for UI polling."""
+    """Enhanced status update for UI polling.
+
+    Writes a JSON status object to a file, allowing external monitors to track progress.
+
+    Args:
+        step (str): The current step identifier (e.g., 'download', 'upload').
+        status (str): The status of the step ('pending', 'in_progress', 'success', 'error', 'skipped').
+        message (str, optional): A human-readable status message.
+        percent (int, optional): The percentage completion of the pipeline (0-100).
+        eta (str, optional): Estimated time remaining string.
+        explainer (str, optional): Additional details explaining the status.
+    """
     status_obj = {
         'step': step,
-        'status': status, # 'pending', 'in_progress', 'success', 'error', 'skipped'
+        'status': status,
         'message': message or '',
         'timestamp': datetime.now().isoformat(),
         'percent': percent,
@@ -48,14 +63,20 @@ def update_status(step, status, message=None, percent=None, eta=None, explainer=
 
 # --- Helper Functions ---
 def get_last_7_days_status():
-    """Checks local download directory for papers to determine recent readiness."""
+    """Checks local download directory for papers to determine recent readiness.
+
+    Scans the configured download directory for files matching the filename template
+    for the last 7 days.
+
+    Returns:
+        list: A list of dicts with 'date' and 'status' ('ready' or 'missing') keys.
+    """
     logger.info("Checking status of downloads for the last 7 days.")
-    today = datetime.now().date() # Use datetime.now().date() for consistency
+    today = datetime.now().date()
     days_to_check = 7
     statuses = []
     
     # These will use defaults if config hasn't been loaded yet, or actual values if it has.
-    # This function is primarily for UI/prompting, so slight initial inaccuracy is acceptable.
     current_date_format = config.config.get(('general', 'date_format'), DATE_FORMAT)
     download_dir = config.config.get(('paths', 'download_dir'), 'downloads')
 
@@ -64,7 +85,6 @@ def get_last_7_days_status():
         date_str = current_date.strftime(current_date_format)
         
         # Check for either PDF or HTML format for the given date
-        # Using the global FILENAME_TEMPLATE which might be updated by config later
         pdf_expected_name = FILENAME_TEMPLATE.format(date=date_str, format="pdf")
         html_expected_name = FILENAME_TEMPLATE.format(date=date_str, format="html")
         
@@ -81,7 +101,15 @@ def get_last_7_days_status():
     return statuses
 
 def get_past_papers_from_storage(target_date: date, days: int):
-    """Gets links to newspapers from cloud storage for the specified number of past days."""
+    """Gets links to newspapers from cloud storage for the specified number of past days.
+
+    Args:
+        target_date (date): The reference date to look back from.
+        days (int): The number of past days to retrieve links for.
+
+    Returns:
+        list: A list of tuples containing (formatted_date_string, url).
+    """
     logger.info("Retrieving links for past %d paper(s) from cloud storage, up to %s.", days, target_date.strftime(DATE_FORMAT))
     past_papers_links = []
     current_date_format = config.config.get(('general', 'date_format'), DATE_FORMAT)
@@ -128,7 +156,14 @@ def get_past_papers_from_storage(target_date: date, days: int):
         return []
 
 def cleanup_old_files_main(target_date: date, dry_run: bool):
-    """Wrapper for cleanup_old_files to fetch retention_days from config."""
+    """Wrapper for cleanup_old_files to fetch retention_days from config.
+
+    Deletes files older than the configured retention period from cloud storage.
+
+    Args:
+        target_date (date): The current processing date.
+        dry_run (bool): If True, simulate deletion without actually deleting files.
+    """
     # Uses global RETENTION_DAYS which is updated after config load
     logger.info("Initiating cleanup of files older than %d days relative to %s.", RETENTION_DAYS, target_date.strftime(DATE_FORMAT))
     current_date_format = config.config.get(('general', 'date_format'), DATE_FORMAT)
@@ -161,7 +196,18 @@ def cleanup_old_files_main(target_date: date, dry_run: bool):
 
 # --- Main Execution Logic ---
 def main(target_date_str: str | None = None, dry_run: bool = False, force_download: bool = False):
-    """Main pipeline for downloading, storing, and preparing newspaper for email."""
+    """Main pipeline for downloading, storing, and preparing newspaper for email.
+
+    Coordinates the download, upload, thumbnail generation, email sending, and cleanup steps.
+
+    Args:
+        target_date_str (str | None): The date to process in YYYY-MM-DD format. Defaults to today.
+        dry_run (bool): If True, skips actual network/storage side-effects where possible.
+        force_download (bool): If True, re-downloads the file even if it exists locally.
+
+    Returns:
+        bool: True if the pipeline completed successfully, False otherwise.
+    """
     global DATE_FORMAT, FILENAME_TEMPLATE, THUMBNAIL_FILENAME_TEMPLATE, RETENTION_DAYS
 
     try:
