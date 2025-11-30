@@ -25,6 +25,7 @@ venv/
 # Project outputs
 logs/
 downloads/
+storage_data/
 newspaper_emailer.log
 pipeline_status.json
 
