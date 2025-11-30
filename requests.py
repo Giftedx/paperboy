@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 """
 Minimal local fallback for the 'requests' module.
-- If the real 'requests' library is available, delegate to it transparently.
-- Otherwise, provide a tiny subset used by this project/tests:
-  - requests.get(url, headers=None, timeout=None)
-  - Response.status_code, Response.content, Response.headers
-  - Response.raise_for_status()
-  - Exceptions: RequestException, HTTPError
 
-Environment toggles:
-- REQUESTS_FALLBACK_DISABLE=1 => Do not use fallback; raise ImportError if real requests is absent.
-- REQUESTS_FALLBACK_FORCE=1   => Force using the fallback even if real requests is installed.
+This module provides a tiny subset of the `requests` library functionality
+to allow the application to run (e.g., in tests or dry runs) even if
+the real `requests` package is not installed.
 
-If network access is unavailable, the fallback returns a synthetic 200 Response to allow
-offline tests to pass.
+Features:
+- If `requests` is installed, it is used transparently.
+- Fallback implementation of `requests.get`.
+- Fallback implementation of `Response` object.
+- Environment control via `REQUESTS_FALLBACK_DISABLE` and `REQUESTS_FALLBACK_FORCE`.
 """
 
 from __future__ import annotations
@@ -49,28 +46,65 @@ if not _real_loaded:
     from typing import Any, Dict, Optional, Tuple, Union
 
     class RequestException(Exception):
+        """Base exception for requests errors."""
         pass
 
     class HTTPError(RequestException):
+        """Exception for HTTP errors."""
         pass
 
     class Response:
+        """Mimics the requests.Response object.
+
+        Attributes:
+            status_code (int): The HTTP status code.
+            content (bytes): The raw response content.
+            headers (dict): The response headers.
+        """
         def __init__(self, status_code: int, content: bytes, headers: Optional[Dict[str, str]] = None):
+            """Initialize the Response object.
+
+            Args:
+                status_code (int): HTTP status code.
+                content (bytes): Response body.
+                headers (dict, optional): Response headers.
+            """
             self.status_code = status_code
             self.content = content
             self.headers = headers or {}
 
         def json(self) -> Any:
+            """Parses the response content as JSON.
+
+            Returns:
+                Any: The parsed JSON data.
+
+            Raises:
+                ValueError: If content is not valid JSON.
+            """
             try:
                 return json.loads(self.content.decode("utf-8"))
             except (json.JSONDecodeError, UnicodeDecodeError) as exc:
                 raise ValueError("Invalid JSON in response content") from exc
 
         def raise_for_status(self) -> None:
+            """Raises HTTPError if status_code indicates an error (>= 400).
+
+            Raises:
+                HTTPError: If status_code is 4xx or 5xx.
+            """
             if self.status_code >= 400:
                 raise HTTPError(f"HTTP {self.status_code}")
 
     def _normalize_timeout(timeout: Optional[Union[float, int, Tuple[Union[float, int], Union[float, int]]]]) -> Optional[float]:
+        """Normalizes the timeout argument to a single float or None.
+
+        Args:
+            timeout: The timeout value (int, float, or tuple).
+
+        Returns:
+            float | None: The timeout in seconds, or None.
+        """
         if timeout is None:
             return None
         if isinstance(timeout, (float, int)):
@@ -83,6 +117,19 @@ if not _real_loaded:
         return None
 
     def get(url: str, headers: Optional[Dict[str, str]] = None, timeout: Optional[Union[float, int, Tuple[Union[float, int], Union[float, int]]]] = None) -> Response:
+        """Sends a GET request.
+
+        Args:
+            url (str): The URL to request.
+            headers (dict, optional): HTTP headers to send.
+            timeout (float | tuple, optional): Timeout in seconds.
+
+        Returns:
+            Response: The response object.
+
+        Raises:
+            RequestException: On malformed URL.
+        """
         # Input validation for url
         if not isinstance(url, str) or not url.strip():
             raise RequestException("URL must be a non-empty string")
