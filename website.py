@@ -59,13 +59,21 @@ def login_and_download(base_url: str, save_path: str, target_date: str | None = 
     # Import requests only when needed to avoid hard dependency during dry-run
     try:
         import requests  # pylint: disable=import-outside-toplevel
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
     except Exception as exc:
         logger.error("'requests' is required for live downloads but is not available: %s", exc)
         return False, "Missing dependency: requests"
 
     try:
-        # Simple GET; add a basic UA header
-        response = requests.get(download_url, headers={"User-Agent": "NewspaperDownloader/1.0"}, timeout=(10, 60))
+        # Setup session with retries
+        session = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        session.mount('http://', HTTPAdapter(max_retries=retries))
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+
+        # GET with retries; add a basic UA header
+        response = session.get(download_url, headers={"User-Agent": "NewspaperDownloader/1.0"}, timeout=(10, 60))
         response.raise_for_status()
 
         # Determine format (default to pdf)
