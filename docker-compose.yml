@@ -1,0 +1,23 @@
+services:
+  newspaper-emailer:
+    build: .
+    image: newspaper-emailer:latest
+    container_name: newspaper_emailer
+    restart: unless-stopped
+    # Run daily at 6 AM (using internal scheduling or external cron).
+    # Since the script runs once and exits, 'restart: no' is better for one-off,
+    # but for a container meant to be scheduled by host cron, this is fine.
+    # Alternatively, use a cron entrypoint if the container should stay alive.
+    # For now, we assume external scheduling (docker run ...) or the user adds a cron loop.
+    # To make this "Sovereign" compliant (self-contained), we might want a simple sleep loop or entrypoint.
+    # But adhering to "Simple" design, we keep it one-shot.
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./logs:/app/logs
+      - ./downloads:/app/downloads
+      - ./storage_data:/app/storage_data
+      - ./.env:/app/.env:ro
+    environment:
+      - NEWSPAPER_CONFIG=config.yaml
+      - NEWSPAPER_ENV=.env
+    network_mode: bridge
