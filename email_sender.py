@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Email sending module (simplified).
-
+Email sending module (simplified)
 Single implementation: SMTP only with inline thumbnail CID.
 """
 
@@ -21,7 +20,7 @@ def _get_jinja_env():
     """Initializes the Jinja2 environment for template rendering.
 
     Returns:
-        jinja2.Environment | None: The Jinja2 environment, or None if jinja2 is not installed.
+        jinja2.Environment | None: The environment object or None if jinja2 is missing.
     """
     try:
         from jinja2 import Environment, FileSystemLoader, select_autoescape  # type: ignore
@@ -35,29 +34,27 @@ def _get_jinja_env():
 
 
 def _is_valid_email(addr: str) -> bool:
-    """Basic email validation regex.
+    """Validates an email address format.
 
     Args:
-        addr (str): The email address to validate.
+        addr (str): The email address to check.
 
     Returns:
-        bool: True if the address matches the basic pattern.
+        bool: True if valid, False otherwise.
     """
     import re
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr))
 
 
 def _render_email_content(target_date, today_paper_url, past_papers, subject_template, template_name):
-    """Renders the email subject and body.
-
-    Uses Jinja2 if available, otherwise falls back to a simple HTML string.
+    """Renders the email subject and body using Jinja2 templates or fallback.
 
     Args:
         target_date (date): The date of the newspaper.
-        today_paper_url (str): The URL of today's downloaded newspaper.
-        past_papers (list): List of tuples (date_str, url) for past newspapers.
-        subject_template (str): Jinja2 template for the subject line.
-        template_name (str): The filename of the HTML body template.
+        today_paper_url (str): URL to download the newspaper.
+        past_papers (list): List of past newspaper links.
+        subject_template (str): Jinja2 template string for the subject.
+        template_name (str): Filename of the HTML template.
 
     Returns:
         tuple: (subject (str), html_body (str))
@@ -101,17 +98,20 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
 
 
 def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, dry_run=False):
-    """Prepares and sends the daily newspaper email.
+    """Sends the daily newspaper email to configured recipients.
+
+    Orchestrates the email creation, including rendering the template,
+    attaching the thumbnail, and sending via SMTP.
 
     Args:
         target_date (date): The date of the newspaper.
-        today_paper_url (str): Cloud URL for the newspaper file.
-        past_papers (list): List of (date, url) tuples for previous editions.
-        thumbnail_path (str | None): Path to local file or URL of the thumbnail image.
-        dry_run (bool): If True, simulate sending without network usage.
+        today_paper_url (str): The URL/Link to the downloaded newspaper.
+        past_papers (list): A list of tuples (date_str, url) for past newspapers.
+        thumbnail_path (str | None): Path to the thumbnail image file.
+        dry_run (bool): If True, simulate sending without network activity.
 
     Returns:
-        bool: True if sent (or simulated) successfully, False otherwise.
+        bool: True if the email was sent successfully (or simulated), False otherwise.
     """
     sender = config.config.get(('email', 'sender'))
     recipients = config.config.get(('email', 'recipients'), [])
@@ -166,20 +166,17 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
 
 
 def _send_via_smtp(sender, recipients, subject, html_body, thumbnail_data):
-    """Sends the constructed email via SMTP.
+    """Internal helper to send the constructed email via SMTP.
 
     Args:
-        sender (str): The 'From' address.
-        recipients (list): List of 'To' addresses.
-        subject (str): Email subject.
-        html_body (str): HTML content of the email.
-        thumbnail_data (bytes | None): Raw image data for inline attachment.
+        sender (str): The sender's email address.
+        recipients (list): List of recipient email addresses.
+        subject (str): The email subject.
+        html_body (str): The HTML content of the email.
+        thumbnail_data (bytes | None): Raw image data for the thumbnail.
 
     Returns:
-        bool: True on success.
-
-    Raises:
-        Exception: On SMTP failure.
+        bool: True on success, False on failure.
     """
     smtp_host = config.config.get(('email', 'smtp_host'))
     smtp_port = int(config.config.get(('email', 'smtp_port'), 587))

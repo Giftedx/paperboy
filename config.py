@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Centralized configuration module for the newspaper emailer system.
-
 Handles loading configuration from environment variables and YAML files,
 validates critical parameters, and provides a unified interface for
 accessing configuration values, logging a summary on startup.
@@ -10,27 +9,21 @@ import os
 import yaml
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path
+from pathlib import Path # Keep Path for potential future use, though not used in current logic
 try:
     from dotenv import load_dotenv  # Optional dependency
 except Exception:  # ImportError or others
     def load_dotenv(*args, **kwargs):  # type: ignore
-        """Dummy load_dotenv implementation if python-dotenv is not installed."""
         return False
 import sys
 
 logger = logging.getLogger(__name__)
 
 def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
-    """Configures logging for the application.
-
+    """
+    Configures logging for the application.
     Sets up console and rotating file handlers with a standard format.
     Safe to call multiple times; replaces existing root handlers.
-
-    Args:
-        log_level: The logging level to set (e.g., logging.INFO).
-        log_file: The name of the log file.
-        log_dir: The directory to store logs in.
     """
     log_directory = Path(log_dir)
     log_directory.mkdir(parents=True, exist_ok=True)
@@ -65,25 +58,26 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
 
 # Define critical configuration keys and their expected types/validation rules
 # Format: (("tuple", "of", "keys"), 'validation_rule')
+# Validation rules: 'str' (non-empty string), 'int', 'bool', 'url' (basic http/https check), 'email_list'
 CRITICAL_CONFIG_KEYS = [
     (("newspaper", "url"), 'url'),
     (("email", "recipients"), 'email_list'),
-    (("email", "sender"), 'str'),
+    (("email", "sender"), 'str'),      # Could be enhanced for actual email format
     (("email", "smtp_host"), 'str'),
     (("email", "smtp_port"), 'int'),
     (("email", "smtp_user"), 'str'),
-    (("email", "smtp_pass"), 'str'),
+    (("email", "smtp_pass"), 'str'), # Presence checked, value redacted
     (("storage", "endpoint_url"), 'url'),
     (("storage", "access_key_id"), 'str'),
     (("storage", "secret_access_key"), 'str'),
     (("storage", "bucket"), 'str'),
-    (("paths", "download_dir"), 'str'),
+    (("paths", "download_dir"), 'str'), # Default is 'downloads' in other modules
 ]
 
 # Substrings to identify keys that should have their values redacted in logs
 SECRET_KEY_SUBSTRINGS = [
     "password", "token", "secret", "passwd", 
-    "smtp_user", "smtp_pass", "api_key", "access_key", "secret_key"
+    "smtp_user", "smtp_pass", "api_key", "access_key", "secret_key" # Added common terms
 ]
 
 class Config:
