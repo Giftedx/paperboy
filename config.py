@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Centralized configuration module for the newspaper emailer system.
+
 Handles loading configuration from environment variables and YAML files,
 validates critical parameters, and provides a unified interface for
 accessing configuration values, logging a summary on startup.
@@ -9,21 +10,27 @@ import os
 import yaml
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path # Keep Path for potential future use, though not used in current logic
+from pathlib import Path
 try:
     from dotenv import load_dotenv  # Optional dependency
 except Exception:  # ImportError or others
     def load_dotenv(*args, **kwargs):  # type: ignore
+        """Dummy load_dotenv implementation if python-dotenv is not installed."""
         return False
 import sys
 
 logger = logging.getLogger(__name__)
 
 def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
-    """
-    Configures logging for the application.
+    """Configures logging for the application.
+
     Sets up console and rotating file handlers with a standard format.
     Safe to call multiple times; replaces existing root handlers.
+
+    Args:
+        log_level: The logging level to set (e.g., logging.INFO).
+        log_file: The name of the log file.
+        log_dir: The directory to store logs in.
     """
     log_directory = Path(log_dir)
     log_directory.mkdir(parents=True, exist_ok=True)
@@ -58,39 +65,51 @@ def setup_logging(log_level=logging.INFO, log_file="app.log", log_dir="logs"):
 
 # Define critical configuration keys and their expected types/validation rules
 # Format: (("tuple", "of", "keys"), 'validation_rule')
-# Validation rules: 'str' (non-empty string), 'int', 'bool', 'url' (basic http/https check), 'email_list'
 CRITICAL_CONFIG_KEYS = [
     (("newspaper", "url"), 'url'),
     (("email", "recipients"), 'email_list'),
-    (("email", "sender"), 'str'),      # Could be enhanced for actual email format
+    (("email", "sender"), 'str'),
     (("email", "smtp_host"), 'str'),
     (("email", "smtp_port"), 'int'),
     (("email", "smtp_user"), 'str'),
-    (("email", "smtp_pass"), 'str'), # Presence checked, value redacted
+    (("email", "smtp_pass"), 'str'),
     (("storage", "endpoint_url"), 'url'),
     (("storage", "access_key_id"), 'str'),
     (("storage", "secret_access_key"), 'str'),
     (("storage", "bucket"), 'str'),
-    (("paths", "download_dir"), 'str'), # Default is 'downloads' in other modules
+    (("paths", "download_dir"), 'str'),
 ]
 
 # Substrings to identify keys that should have their values redacted in logs
 SECRET_KEY_SUBSTRINGS = [
     "password", "token", "secret", "passwd", 
-    "smtp_user", "smtp_pass", "api_key", "access_key", "secret_key" # Added common terms
+    "smtp_user", "smtp_pass", "api_key", "access_key", "secret_key"
 ]
 
 class Config:
+    """Singleton configuration manager.
+
+    Attributes:
+        _config (dict): The loaded YAML configuration.
+        _loaded (bool): Whether YAML configuration has been loaded.
+        _env_file_loaded (bool): Whether a .env file was successfully loaded.
+        CRITICAL_CONFIG_MAP (dict): Map of config keys to validation rules.
+    """
     def __init__(self):
+        """Initializes the Config object."""
         self._config = {}  # Loaded from YAML
         self._loaded = False
         self._env_file_loaded = False # Tracks if a .env file was processed
         self.CRITICAL_CONFIG_MAP = {key_path: rule for key_path, rule in CRITICAL_CONFIG_KEYS}
 
     def _is_secret(self, key_name_parts):
-        """
-        Checks if any part of a multi-level key name suggests a secret value.
-        Example: key_name_parts = ('email', 'smtp_password')
+        """Checks if any part of a multi-level key name suggests a secret value.
+
+        Args:
+            key_name_parts (list or tuple): The path of the configuration key.
+
+        Returns:
+            bool: True if the key contains a secret keyword, False otherwise.
         """
         if not isinstance(key_name_parts, (list, tuple)):
             key_name_parts = [str(key_name_parts)] # Ensure it's iterable
@@ -102,7 +121,11 @@ class Config:
         return False
 
     def validate_critical_config(self):
-        """Validates the presence and basic type of critical configuration keys."""
+        """Validates the presence and basic type of critical configuration keys.
+
+        Returns:
+            bool: True if all critical configurations are valid, False otherwise.
+        """
         is_valid = True
         logger.debug("Validating critical configuration parameters...")
         for key_path, validation_rule in CRITICAL_CONFIG_KEYS:
@@ -165,7 +188,11 @@ class Config:
         return is_valid
 
     def log_config_summary(self, log_level=logging.INFO):
-        """Logs a summary of the loaded configuration, redacting secrets."""
+        """Logs a summary of the loaded configuration, redacting secrets.
+
+        Args:
+            log_level: The logging level to use for the summary.
+        """
         if not self._loaded and not self._env_file_loaded: # Check if any loading attempt was made
             logger.info("No configuration loaded (YAML not found/empty and .env not processed). Summary not available.")
             return
@@ -210,10 +237,12 @@ class Config:
         logger.log(log_level, "-----------------------------")
 
     def load(self):
-        """
-        Load configuration from .env and YAML file (e.g., config.yaml).
+        """Loads configuration from .env and YAML file (e.g., config.yaml).
+
         Validates critical parameters and logs a summary.
-        Returns True if successful and critical configs are valid, False otherwise.
+
+        Returns:
+            bool: True if successful and critical configs are valid, False otherwise.
         """
         # Determine paths for .env and config.yaml
         config_path_env = os.environ.get('NEWSPAPER_CONFIG')
@@ -270,9 +299,16 @@ class Config:
         return True
 
     def get(self, key_tuple, default=None):
-        """
-        Retrieve a value from the config.
+        """Retrieves a value from the config.
+
         Priority: 1. YAML config, 2. Environment Variables, 3. Default value.
+
+        Args:
+            key_tuple (tuple): The key path in the config dictionary (e.g. ('email', 'smtp_host')).
+            default: The default value to return if the key is not found.
+
+        Returns:
+            The configuration value, or the default.
         """
         # Try YAML first
         d = self._config
@@ -319,7 +355,12 @@ class Config:
             return default
 
     def _set(self, key_tuple, value):
-        """Set a value deep in the YAML config structure to normalize types during validation."""
+        """Sets a value deep in the YAML config structure to normalize types.
+
+        Args:
+            key_tuple (tuple): The path of keys.
+            value: The value to set.
+        """
         d = self._config
         for k in key_tuple[:-1]:
             if k not in d or not isinstance(d[k], dict):
