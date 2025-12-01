@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Thumbnail generation module (simplified).
+
 Single implementation: PDF only using PyMuPDF (fitz) + Pillow.
 """
 
@@ -18,9 +19,22 @@ THUMBNAIL_QUALITY = 85
 def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pdf", dry_run: bool = False,
                        width: int = THUMBNAIL_WIDTH, height: int = THUMBNAIL_HEIGHT,
                        fmt: str = THUMBNAIL_FORMAT, quality: int = THUMBNAIL_QUALITY) -> bool:
-    """Generate a thumbnail from the first page of a PDF.
+    """Generates a thumbnail image from the first page of a PDF file.
 
-    Returns True on success, False on failure.
+    Requires PyMuPDF (fitz) and Pillow (PIL) libraries.
+
+    Args:
+        input_path (str): Path to the source PDF file.
+        output_path (str): Path where the thumbnail should be saved.
+        file_format (str): The format of the input file. Must be 'pdf'.
+        dry_run (bool): If True, skip generation and return success.
+        width (int): Target width of the thumbnail.
+        height (int): Target height of the thumbnail.
+        fmt (str): Output image format (e.g., 'JPEG', 'PNG').
+        quality (int): Quality setting for JPEG output (1-100).
+
+    Returns:
+        bool: True if generation was successful, False otherwise.
     """
     if dry_run:
         logger.info("[Dry Run] Would generate thumbnail for %s -> %s", input_path, output_path)

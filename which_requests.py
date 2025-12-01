@@ -21,6 +21,13 @@ from pathlib import Path
 
 
 def main() -> int:
+    """Checks and reports the active requests implementation.
+
+    Parses command line arguments to optionally enforce a specific implementation.
+
+    Returns:
+        int: Exit code (0 for success/match, 1 for failure/mismatch).
+    """
     parser = argparse.ArgumentParser(description="Check which 'requests' implementation is active")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--require-real", action="store_true", help="exit non-zero if fallback is active")

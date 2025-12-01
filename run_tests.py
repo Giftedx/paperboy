@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Comprehensive test runner for the simplified Newspaper Emailer system.
-This script runs basic static checks without external dependencies.
+
+This script runs basic static checks and environment diagnostics
+without external dependencies.
 """
 
 import os
@@ -11,6 +13,12 @@ from pathlib import Path
 
 
 def print_status(message, status="INFO"):
+    """Prints a status message with color coding.
+
+    Args:
+        message (str): The message to print.
+        status (str): The status level ('INFO', 'SUCCESS', 'WARNING', 'ERROR').
+    """
     colors = {
         "INFO": "\033[94m",
         "SUCCESS": "\033[92m",
@@ -22,6 +30,14 @@ def print_status(message, status="INFO"):
 
 
 def check_python_syntax(file_path):
+    """Checks if a file contains valid Python syntax.
+
+    Args:
+        file_path (str): Path to the Python file.
+
+    Returns:
+        bool: True if syntax is valid, False otherwise.
+    """
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             ast.parse(f.read())
@@ -35,6 +51,11 @@ def check_python_syntax(file_path):
 
 
 def test_basic_functionality():
+    """Runs syntax checks on key source files.
+
+    Returns:
+        bool: True if all files pass syntax checks.
+    """
     print_status("Testing basic functionality...", "INFO")
     tests = [
         ("Main module syntax", "main.py"),
@@ -63,6 +84,11 @@ def test_basic_functionality():
 
 
 def test_configuration_files():
+    """Checks for the existence and readability of configuration files.
+
+    Returns:
+        bool: True if critical config files exist and are readable.
+    """
     print_status("Testing configuration files...", "INFO")
     config_files = [
         ("config.yaml", "Main configuration file"),
@@ -92,6 +118,11 @@ def test_configuration_files():
 
 
 def test_directory_structure():
+    """Verifies that required directories exist.
+
+    Returns:
+        bool: True if required directories exist.
+    """
     print_status("Testing directory structure...", "INFO")
     required_dirs = [
         ("templates", "Email templates"),
@@ -113,6 +144,11 @@ def test_directory_structure():
 
 
 def environment_diagnostics():
+    """Checks the environment for dependencies, specifically 'requests'.
+
+    Returns:
+        bool: Always True (diagnostic only).
+    """
     print_status("Environment diagnostics...", "INFO")
     try:
         import requests  # type: ignore
@@ -133,6 +169,11 @@ def environment_diagnostics():
 
 
 def main():
+    """Main entry point for the test runner.
+
+    Returns:
+        int: Exit code (0 for pass, 1 for fail).
+    """
     print_status("Starting simplified test suite...", "INFO")
     print()
 

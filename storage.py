@@ -3,7 +3,7 @@
 Storage interaction module
 Handles uploading and deleting files from cloud storage (AWS S3 or compatible like Cloudflare R2).
 Also manages local file cleanup and local storage backend.
-"""
+
 
 import os
 import shutil
@@ -19,6 +19,7 @@ try:
     from botocore.exceptions import ClientError as BotoClientError  # Optional
 except Exception:  # pragma: no cover - fallback when botocore not present
     class BotoClientError(Exception):  # type: ignore
+        """Placeholder for botocore.exceptions.ClientError if library is missing."""
         pass
 
 import config
@@ -27,10 +28,19 @@ logger = logging.getLogger(__name__)
 
 # Custom exception for storage errors
 class ClientError(Exception):
+    """Custom exception raised for storage-related errors."""
     pass
 
 # Lazy S3 client initialization
 def _get_s3_client():
+    """Initializes and returns a boto3 S3 client using configured credentials.
+
+    Returns:
+        boto3.client: The configured S3 client.
+
+    Raises:
+        ClientError: If boto3 is not installed.
+    """
     if boto3 is None:
         raise ClientError("boto3 is required for storage operations but is not installed.")
     endpoint_url = config.config.get(('storage', 'endpoint_url'))
@@ -178,6 +188,9 @@ def upload_to_storage(local_file_path, s3_key, dry_run=False):
     if dry_run:
         logger.info("[Dry Run] Would upload %s to %s/%s", local_file_path, bucket, s3_key)
         return True
+    if not os.path.isfile(local_file_path):
+        logger.error("File to upload does not exist: %s", local_file_path)
+        return False
     try:
         s3.upload_file(local_file_path, bucket, s3_key)
         logger.info("Uploaded %s to %s/%s", local_file_path, bucket, s3_key)
