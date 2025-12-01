@@ -3,7 +3,7 @@
 Simplified website interaction module.
 
 Single implementation: constructs a download URL and fetches via requests.
-Includes conditional resilience (retries) if the real 'requests' library is available.
+No Playwright, no scraping fallbacks.
 """
 
 import os
@@ -15,47 +15,18 @@ import config
 
 logger = logging.getLogger(__name__)
 
-# Default timeouts (connect, read)
-DEFAULT_TIMEOUT = (10, 60)
-DEFAULT_USER_AGENT = "NewspaperDownloader/1.0"
 
+def login_and_download(base_url: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
+    """Downloads the newspaper for the given date using a simple GET.
 
-def _get_session(requests_lib):
-    """
-    Creates a requests Session with retry logic if available.
-    If the requests library provided is the fallback one (which might not support Session/Adapters),
-    returns None or a simple object, signaling to use a plain get().
-    """
-    try:
-        from requests.adapters import HTTPAdapter
-        from urllib3.util.retry import Retry
-    except ImportError:
-        # Fallback implementation or partial install; cannot use advanced retry logic
-        logger.debug("Advanced requests features (HTTPAdapter, Retry) not available. Using simple requests.")
-        return None
+    Expects the newspaper to be available at a predictable URL pattern relative to base_url.
 
-    session = requests_lib.Session()
-
-    # Define retry strategy
-    retry_strategy = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["HEAD", "GET", "OPTIONS"]
-    )
-
-    adapter = HTTPAdapter(max_retries=retry_strategy)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-
-    # Set default headers
-    session.headers.update({"User-Agent": DEFAULT_USER_AGENT})
-
-    return session
-
-
-def download_file(base_url: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
-    """Download the newspaper for the given date.
+    Args:
+        base_url (str): The base URL of the newspaper website.
+        save_path (str): The local path (without extension) to save the downloaded file.
+        target_date (str | None): The date to download in YYYY-MM-DD format. Defaults to today.
+        dry_run (bool): If True, simulate download without network activity.
+        force_download (bool): If True, overwrite local file if it exists.
 
     Returns:
         tuple: (success (bool), result_path_or_error (str))
@@ -84,6 +55,7 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
             return True, existing_pdf
 
     # Use configurable download path pattern, with a sensible default
+    # Example default: "newspaper/download/{date}"
     download_path_pattern = config.config.get(("newspaper", "download_path_pattern"), "newspaper/download/{date}")
     download_path = download_path_pattern.format(date=target_date_str)
     download_url = urljoin(base_url.rstrip("/") + "/", download_path)
@@ -104,24 +76,19 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
         return False, "Missing dependency: requests"
 
     try:
-        session = _get_session(requests)
+        # Setup session with retries
+        session = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        session.mount('http://', HTTPAdapter(max_retries=retries))
+        session.mount('https://', HTTPAdapter(max_retries=retries))
 
-        if session:
-            logger.debug("Using requests.Session with retry logic.")
-            response = session.get(download_url, timeout=DEFAULT_TIMEOUT)
-        else:
-            logger.debug("Using simple requests.get (no retries).")
-            response = requests.get(download_url, headers={"User-Agent": DEFAULT_USER_AGENT}, timeout=DEFAULT_TIMEOUT)
-
+        # GET with retries; add a basic UA header
+        response = session.get(download_url, headers={"User-Agent": "NewspaperDownloader/1.0"}, timeout=(10, 60))
         response.raise_for_status()
 
         # Determine format (default to pdf)
         content_type = response.headers.get("Content-Type", "").lower()
         file_ext = "pdf" if "pdf" in content_type or not content_type else "bin"
-        # If content-type suggests html, use html extension (useful for error pages that return 200 or html papers)
-        if "html" in content_type:
-            file_ext = "html"
-
         save_path_with_ext = f"{abs_save_path}.{file_ext}"
 
         with open(save_path_with_ext, "wb") as fh:
@@ -133,9 +100,6 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
         logger.error("Download failed for %s: %s", download_url, e)
         return False, f"Download error: {e}"
 
-
-# Backwards compatibility alias
-login_and_download = download_file
 
 if __name__ == '__main__':
     from dotenv import load_dotenv
@@ -152,7 +116,7 @@ if __name__ == '__main__':
         logger.error("Required environment variable (WEBSITE_URL) or config value not set for standalone test.")
     else:
         logger.info("Initiating test download for URL: %s, Save Path Base: %s", WEBSITE_URL_TEST, SAVE_PATH_BASE_TEST)
-        success, file_info = download_file(
+        success, file_info = login_and_download(
             base_url=WEBSITE_URL_TEST,
             save_path=SAVE_PATH_BASE_TEST, 
             target_date=test_date_str,

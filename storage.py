@@ -3,7 +3,7 @@
 Storage interaction module
 Handles uploading and deleting files from cloud storage (AWS S3 or compatible like Cloudflare R2).
 Also manages local file cleanup and local storage backend.
-
+"""
 
 import os
 import shutil
@@ -188,9 +188,6 @@ def upload_to_storage(local_file_path, s3_key, dry_run=False):
     if dry_run:
         logger.info("[Dry Run] Would upload %s to %s/%s", local_file_path, bucket, s3_key)
         return True
-    if not os.path.isfile(local_file_path):
-        logger.error("File to upload does not exist: %s", local_file_path)
-        return False
     try:
         s3.upload_file(local_file_path, bucket, s3_key)
         logger.info("Uploaded %s to %s/%s", local_file_path, bucket, s3_key)

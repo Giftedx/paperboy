@@ -16,11 +16,11 @@ import time
 import website
 import storage
 import email_sender
-import config
-import thumbnail
+import config # Assuming config.py has been enhanced
+import thumbnail # Assuming thumbnail.py has been enhanced
 
 # Logging setup
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Use standard logging
 DATE_FORMAT = '%Y-%m-%d' 
 FILENAME_TEMPLATE = "{date}_newspaper.{format}" 
 THUMBNAIL_FILENAME_TEMPLATE = "{date}_thumbnail.{format}"
@@ -43,7 +43,7 @@ def update_status(step, status, message=None, percent=None, eta=None, explainer=
     """
     status_obj = {
         'step': step,
-        'status': status,
+        'status': status, # 'pending', 'in_progress', 'success', 'error', 'skipped'
         'message': message or '',
         'timestamp': datetime.now().isoformat(),
         'percent': percent,
@@ -72,11 +72,12 @@ def get_last_7_days_status():
         list: A list of dicts with 'date' and 'status' ('ready' or 'missing') keys.
     """
     logger.info("Checking status of downloads for the last 7 days.")
-    today = datetime.now().date()
+    today = datetime.now().date() # Use datetime.now().date() for consistency
     days_to_check = 7
     statuses = []
     
     # These will use defaults if config hasn't been loaded yet, or actual values if it has.
+    # This function is primarily for UI/prompting, so slight initial inaccuracy is acceptable.
     current_date_format = config.config.get(('general', 'date_format'), DATE_FORMAT)
     download_dir = config.config.get(('paths', 'download_dir'), 'downloads')
 
@@ -85,6 +86,7 @@ def get_last_7_days_status():
         date_str = current_date.strftime(current_date_format)
         
         # Check for either PDF or HTML format for the given date
+        # Using the global FILENAME_TEMPLATE which might be updated by config later
         pdf_expected_name = FILENAME_TEMPLATE.format(date=date_str, format="pdf")
         html_expected_name = FILENAME_TEMPLATE.format(date=date_str, format="html")
         
@@ -247,12 +249,12 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         download_dir = config.config.get(('paths', 'download_dir'), 'downloads')
         os.makedirs(download_dir, exist_ok=True)
         
-        # Base path for download; website.download_file should append the correct extension.
+        # Base path for download; website.login_and_download should append the correct extension.
         base_save_path = os.path.join(download_dir, FILENAME_TEMPLATE.format(date=target_date.strftime(DATE_FORMAT), format='').rstrip('.'))
         
         update_status('download', 'in_progress', 'Downloading newspaper...', percent=20, eta='approx. 1-2 min')
         
-        download_success, download_result = website.download_file(
+        download_success, download_result = website.login_and_download(
             base_url=config.config.get(('newspaper', 'url')),
             save_path=base_save_path,
             target_date=target_date.strftime(DATE_FORMAT),
