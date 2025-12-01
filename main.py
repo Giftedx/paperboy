@@ -201,12 +201,12 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         download_dir = config.config.get(('paths', 'download_dir'), 'downloads')
         os.makedirs(download_dir, exist_ok=True)
         
-        # Base path for download; website.login_and_download should append the correct extension.
+        # Base path for download; website.download_file should append the correct extension.
         base_save_path = os.path.join(download_dir, FILENAME_TEMPLATE.format(date=target_date.strftime(DATE_FORMAT), format='').rstrip('.'))
         
         update_status('download', 'in_progress', 'Downloading newspaper...', percent=20, eta='approx. 1-2 min')
         
-        download_success, download_result = website.login_and_download(
+        download_success, download_result = website.download_file(
             base_url=config.config.get(('newspaper', 'url')),
             save_path=base_save_path,
             target_date=target_date.strftime(DATE_FORMAT),
