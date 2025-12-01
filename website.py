@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Simplified website interaction module.
+
 Single implementation: constructs a download URL and fetches via requests.
 Includes conditional resilience (retries) if the real 'requests' library is available.
 """
@@ -56,8 +57,8 @@ def _get_session(requests_lib):
 def download_file(base_url: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
     """Download the newspaper for the given date.
 
-    - Expects the newspaper to be available at base_url/newspaper/download/YYYY-MM-DD
-    - Returns (success: bool, result: str). On success, result is the full local file path.
+    Returns:
+        tuple: (success (bool), result_path_or_error (str))
     """
     # Resolve date
     if target_date is None:
@@ -96,6 +97,8 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
     # Import requests only when needed to avoid hard dependency during dry-run
     try:
         import requests  # pylint: disable=import-outside-toplevel
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
     except Exception as exc:
         logger.error("'requests' is required for live downloads but is not available: %s", exc)
         return False, "Missing dependency: requests"
