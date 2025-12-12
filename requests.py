@@ -40,6 +40,7 @@ if not _real_loaded:
     if _disable_fallback:
         raise ImportError("Real 'requests' not available and fallback is disabled via REQUESTS_FALLBACK_DISABLE=1")
 
+    __fallback__ = True
     import json
     import ssl
     import urllib.request
