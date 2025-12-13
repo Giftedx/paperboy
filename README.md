@@ -46,6 +46,16 @@ The system operates as a linear pipeline orchestrated by `main.py`.
 
 ### Configuration
 
+✨ **New! Interactive Setup Wizard**
+
+We provide an interactive wizard to help you generate your configuration files easily.
+
+```bash
+python configure.py
+```
+
+Alternatively, you can manually configure the system:
+
 Configuration is hierarchical: **YAML** < **Environment Variables**.
 
 1.  **`config.yaml`**: Copy `config.yaml` (if not present) and set your defaults.

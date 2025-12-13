@@ -17,6 +17,16 @@ import subprocess
 import sys
 from typing import List, Tuple
 
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    RICH_AVAILABLE = True
+    console = Console()
+except ImportError:
+    RICH_AVAILABLE = False
+    console = None
+
 
 def run_cmd(cmd: List[str], env: dict | None = None) -> Tuple[int, str]:
     """Runs a shell command and captures its output.
@@ -59,19 +69,46 @@ def main() -> int:
     steps.append((['python3', 'main.py'], env, 'Dry-run pipeline'))
 
     overall_ok = True
+
+    if RICH_AVAILABLE:
+        console.print(Panel.fit("[bold blue]System Health Check[/bold blue]"))
+
     for cmd, env, label in steps:
-        print(f"\n=== {label} ===")
+        if RICH_AVAILABLE:
+            console.rule(f"[bold]{label}[/bold]")
+        else:
+            print(f"\n=== {label} ===")
+
         code, out = run_cmd(cmd, env=env)
-        print(out)
+
+        if RICH_AVAILABLE:
+            if code == 0:
+                console.print(f"[green]✔ PASS[/green]")
+                # Only print output if strictly necessary or verbose?
+                # For now let's print it dim/grey
+                console.print(out, style="dim")
+            else:
+                console.print(f"[red]✖ FAIL[/red]")
+                console.print(out, style="red")
+        else:
+            print(out)
+            if code != 0:
+                print(f"[ERROR] Step failed with exit code {code}: {label}")
+
         if code != 0:
-            print(f"[ERROR] Step failed with exit code {code}: {label}")
             overall_ok = False
 
     if overall_ok:
-        print("\nAll health checks passed.")
+        if RICH_AVAILABLE:
+            console.print(Panel("[bold green]All health checks passed.[/bold green]", expand=False))
+        else:
+            print("\nAll health checks passed.")
         return 0
     else:
-        print("\nSome health checks failed.")
+        if RICH_AVAILABLE:
+            console.print(Panel("[bold red]Some health checks failed.[/bold red]", expand=False))
+        else:
+            print("\nSome health checks failed.")
         return 1
 
 
