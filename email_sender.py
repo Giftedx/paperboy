@@ -47,7 +47,7 @@ def _is_valid_email(addr: str) -> bool:
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr))
 
 
-def _render_email_content(target_date, today_paper_url, past_papers, subject_template, template_name):
+def _render_email_content(target_date, today_paper_url, past_papers, subject_template, template_name, has_thumbnail=False):
     """Renders the email subject and body.
 
     Uses Jinja2 if available, otherwise falls back to a simple HTML string.
@@ -58,6 +58,7 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
         past_papers (list): List of tuples (date_str, url) for past newspapers.
         subject_template (str): Jinja2 template for the subject line.
         template_name (str): The filename of the HTML body template.
+        has_thumbnail (bool): Whether a thumbnail image will be attached.
 
     Returns:
         tuple: (subject (str), html_body (str))
@@ -73,14 +74,24 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
             subject = f"Your Daily Newspaper - {date_str}"
         try:
             template = env.get_template(template_name)
-            html_body = template.render(
-                date=date_str,
-                today_paper_url=today_paper_url,
-                past_papers=past_papers,
-                thumbnail_cid="thumbnail",
-                recipient=recipient_name,
-                archive_summary=f"You have access to the last {len(past_papers)} days of newspapers."
-            )
+            # Ensure archive summary is friendly even if 0
+            archive_count = len(past_papers)
+            if archive_count > 0:
+                summary = f"You have access to the last {archive_count} days of newspapers."
+            else:
+                summary = "Archive is building up..."
+
+            render_context = {
+                'date': date_str,
+                'today_paper_url': today_paper_url,
+                'past_papers': past_papers,
+                'recipient': recipient_name,
+                'archive_summary': summary
+            }
+            if has_thumbnail:
+                render_context['thumbnail_cid'] = "thumbnail"
+
+            html_body = template.render(**render_context)
             return subject, html_body
         except Exception:
             pass
@@ -123,24 +134,15 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
         logger.error("No valid recipients found in config.")
         return False
 
-    subject, html_body = _render_email_content(
-        target_date, today_paper_url, past_papers, subject_template, template_name
-    )
-
-    # In dry_run mode, do not perform any network or file I/O for thumbnail fetching
-    if dry_run:
-        logger.info("[Dry Run] Would send email to: %s", valid_recipients)
-        logger.info("Subject: %s", subject)
-        logger.info("Body: %s", html_body[:200] + '...')
-        if thumbnail_path:
-            logger.info("[Dry Run] Would attach thumbnail reference: %s", thumbnail_path)
-        return True
-
+    # Determine if we have a thumbnail to attach
+    has_thumbnail = False
     thumbnail_data = None
-    if thumbnail_path:
+
+    if thumbnail_path and not dry_run:
         if os.path.isfile(thumbnail_path):
             with open(thumbnail_path, 'rb') as f:
                 thumbnail_data = f.read()
+                has_thumbnail = True
         elif thumbnail_path.startswith(('http://', 'https://')):
             try:
                 try:
@@ -152,11 +154,28 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
                     response = requests.get(thumbnail_path, timeout=30)
                     response.raise_for_status()
                     thumbnail_data = response.content
+                    has_thumbnail = True
                     logger.info("Downloaded thumbnail from URL: %s", thumbnail_path)
             except Exception as e:
                 logger.warning("Failed to download thumbnail from URL %s: %s", thumbnail_path, e)
         else:
             logger.warning("Invalid thumbnail_path: %s (not a file or URL)", thumbnail_path)
+    elif thumbnail_path and dry_run:
+        # In dry run, we simulate having it if path is provided
+        has_thumbnail = True
+
+    subject, html_body = _render_email_content(
+        target_date, today_paper_url, past_papers, subject_template, template_name, has_thumbnail=has_thumbnail
+    )
+
+    # In dry_run mode, do not perform any network or file I/O for thumbnail fetching
+    if dry_run:
+        logger.info("[Dry Run] Would send email to: %s", valid_recipients)
+        logger.info("Subject: %s", subject)
+        logger.info("Body: %s", html_body[:200] + '...')
+        if thumbnail_path:
+            logger.info("[Dry Run] Would attach thumbnail reference: %s", thumbnail_path)
+        return True
 
     try:
         return _send_via_smtp(sender, valid_recipients, subject, html_body, thumbnail_data)

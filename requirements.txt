@@ -5,3 +5,4 @@ pillow==11.3.0
 python-dotenv==1.0.0
 PyYAML==6.0.2
 requests==2.32.4
+rich==13.9.4

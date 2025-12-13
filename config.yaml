@@ -30,7 +30,7 @@ email:
   sender: "sender@example.com"
   recipients:
     - "recipient1@example.com"
-  subject_template: "Your Daily Newspaper - {{ date }}"
+  subject_template: "🗞️ Your Daily Edition is Ready: {{ date }}"
   template: "email_template.html"
   smtp_host: "smtp.example.com"
   smtp_port: 587

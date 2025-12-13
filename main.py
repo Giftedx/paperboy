@@ -19,6 +19,16 @@ import email_sender
 import config
 import thumbnail
 
+try:
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+    from rich.panel import Panel
+    from rich.live import Live
+    from rich.table import Table
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
 # Logging setup
 logger = logging.getLogger(__name__)
 DATE_FORMAT = '%Y-%m-%d' 
@@ -27,11 +37,19 @@ THUMBNAIL_FILENAME_TEMPLATE = "{date}_thumbnail.{format}"
 RETENTION_DAYS = 7 
 STATUS_FILE = 'pipeline_status.json'
 
+# Rich Console instance
+if RICH_AVAILABLE:
+    console = Console()
+    # Global progress hooks (optional usage)
+else:
+    console = None
+
 # --- Status Update Function (Consolidated) ---
 def update_status(step, status, message=None, percent=None, eta=None, explainer=None):
     """Enhanced status update for UI polling.
 
     Writes a JSON status object to a file, allowing external monitors to track progress.
+    Also updates Rich console if available.
 
     Args:
         step (str): The current step identifier (e.g., 'download', 'upload').
@@ -50,6 +68,19 @@ def update_status(step, status, message=None, percent=None, eta=None, explainer=
         'eta': eta,
         'explainer': explainer
     }
+
+    # Update Rich Console
+    if RICH_AVAILABLE and console and message:
+        color = "blue"
+        if status == 'success': color = "green"
+        if status == 'error': color = "red"
+        if status == 'skipped': color = "yellow"
+
+        # We just print line updates for now, or could use a Live display in main()
+        # For simplicity, we print log-style colorful messages
+        if status in ['success', 'error', 'skipped'] or step == 'config_load':
+             console.print(f"[{color}]{message}[/{color}]")
+
     try:
         # Allow overriding STATUS_FILE from config paths.status_file when available
         status_file_path = config.config.get(('paths', 'status_file'), STATUS_FILE)
@@ -370,6 +401,22 @@ def main(target_date_str: str | None = None, dry_run: bool = False, force_downlo
         if not dry_run: 
             if all(status['status'] == 'ready' for status in get_last_7_days_status()):
                 logger.info("Consistently successful for the past 7 days. Consider full automation if not already set up.")
+
+        if dry_run and RICH_AVAILABLE:
+            summary_table = Table(title="Dry Run Summary", show_header=True, header_style="bold magenta")
+            summary_table.add_column("Parameter", style="cyan")
+            summary_table.add_column("Value", style="green")
+
+            summary_table.add_row("Target Date", target_date.strftime(DATE_FORMAT))
+            summary_table.add_row("Download URL", config.config.get(('newspaper', 'url')))
+            summary_table.add_row("Cloud Upload Path", f"{config.config.get(('storage', 'bucket'))}/{newspaper_filename}")
+
+            recipients = config.config.get(('email', 'recipients'), [])
+            summary_table.add_row("Email Recipients", ", ".join(recipients))
+            summary_table.add_row("Thumbnail", "Simulated" if thumbnail_cloud_url else "None")
+
+            console.print(Panel(summary_table, expand=False))
+
         return True
 
     except Exception as e: 
