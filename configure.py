@@ -7,6 +7,13 @@ import yaml
 from rich.console import Console
 from rich.prompt import Prompt, Confirm, IntPrompt
 from rich.panel import Panel
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.fernet import Fernet
+import base64
+import os as _os
+import getpass
 
 console = Console()
 
@@ -35,7 +42,31 @@ def main():
     smtp_pass = Prompt.ask("SMTP Password", password=True)
     smtp_tls = Confirm.ask("Use TLS?", default=True)
 
-    # --- Generate Files ---
+    # --- Secret Encryption ---
+    console.rule("[bold]Encrypting Secrets[/bold]")
+    while True:
+        passphrase1 = getpass.getpass("Master passphrase for encrypting secrets: ")
+        passphrase2 = getpass.getpass("Confirm master passphrase: ")
+        if passphrase1 != passphrase2:
+            console.print("[red]Passphrases do not match. Try again.[/red]")
+        elif passphrase1.strip() == '':
+            console.print("[red]Passphrase cannot be empty.[/red]")
+        else:
+            break
+    # Derive key from passphrase with new random salt
+    salt = _os.urandom(16)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=390000,
+        backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(passphrase1.encode()))
+    fernet = Fernet(key)
+    encrypted_secret_key = fernet.encrypt(secret_key.encode()).decode()
+    encrypted_smtp_pass = fernet.encrypt(smtp_pass.encode()).decode()
+    salt_b64 = base64.urlsafe_b64encode(salt).decode()
     console.rule("[bold]Generating Files[/bold]")
 
     config_data = {
@@ -92,9 +123,12 @@ def main():
 
     # Write .env
     env_content = f"""# Auto-generated .env file
+# The following secrets are encrypted with Fernet (AES-GCM, passphrase-based)
 STORAGE_ACCESS_KEY_ID="{access_key}"
-STORAGE_SECRET_ACCESS_KEY="{secret_key}"
-EMAIL_SMTP_PASS="{smtp_pass}"
+STORAGE_SECRET_ACCESS_KEY_ENC="{encrypted_secret_key}"
+EMAIL_SMTP_PASS_ENC="{encrypted_smtp_pass}"
+SECRETS_ENC_SALT="{salt_b64}"
+# To decrypt, prompt user for the master passphrase gathered during config.
 """
     if os.path.exists('.env'):
         if not Confirm.ask("[yellow].env[/yellow] already exists. Overwrite?"):
