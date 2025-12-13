@@ -97,9 +97,7 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
     # Import requests only when needed to avoid hard dependency during dry-run
     try:
         import requests  # pylint: disable=import-outside-toplevel
-        from requests.adapters import HTTPAdapter
-        from urllib3.util.retry import Retry
-    except Exception as exc:
+    except ImportError as exc:
         logger.error("'requests' is required for live downloads but is not available: %s", exc)
         return False, "Missing dependency: requests"
 
