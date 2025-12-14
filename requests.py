@@ -17,8 +17,18 @@ from __future__ import annotations
 
 import os as _os
 
-_force_fallback = _os.environ.get("REQUESTS_FALLBACK_FORCE", "0").lower() in {"1", "true", "yes", "y"}
-_disable_fallback = _os.environ.get("REQUESTS_FALLBACK_DISABLE", "0").lower() in {"1", "true", "yes", "y"}
+_force_fallback = _os.environ.get("REQUESTS_FALLBACK_FORCE", "0").lower() in {
+    "1",
+    "true",
+    "yes",
+    "y",
+}
+_disable_fallback = _os.environ.get("REQUESTS_FALLBACK_DISABLE", "0").lower() in {
+    "1",
+    "true",
+    "yes",
+    "y",
+}
 
 _real_loaded = False
 if not _force_fallback:
@@ -38,7 +48,9 @@ if not _force_fallback:
 
 if not _real_loaded:
     if _disable_fallback:
-        raise ImportError("Real 'requests' not available and fallback is disabled via REQUESTS_FALLBACK_DISABLE=1")
+        raise ImportError(
+            "Real 'requests' not available and fallback is disabled via REQUESTS_FALLBACK_DISABLE=1"
+        )
 
     __fallback__ = True
     import json
@@ -48,10 +60,12 @@ if not _real_loaded:
 
     class RequestException(Exception):
         """Base exception for requests errors."""
+
         pass
 
     class HTTPError(RequestException):
         """Exception for HTTP errors."""
+
         pass
 
     class Response:
@@ -62,7 +76,13 @@ if not _real_loaded:
             content (bytes): The raw response content.
             headers (dict): The response headers.
         """
-        def __init__(self, status_code: int, content: bytes, headers: Optional[Dict[str, str]] = None):
+
+        def __init__(
+            self,
+            status_code: int,
+            content: bytes,
+            headers: Optional[Dict[str, str]] = None,
+        ):
             """Initialize the Response object.
 
             Args:
@@ -97,7 +117,11 @@ if not _real_loaded:
             if self.status_code >= 400:
                 raise HTTPError(f"HTTP {self.status_code}")
 
-    def _normalize_timeout(timeout: Optional[Union[float, int, Tuple[Union[float, int], Union[float, int]]]]) -> Optional[float]:
+    def _normalize_timeout(
+        timeout: Optional[
+            Union[float, int, Tuple[Union[float, int], Union[float, int]]]
+        ],
+    ) -> Optional[float]:
         """Normalizes the timeout argument to a single float or None.
 
         Args:
@@ -117,7 +141,13 @@ if not _real_loaded:
                 return None
         return None
 
-    def get(url: str, headers: Optional[Dict[str, str]] = None, timeout: Optional[Union[float, int, Tuple[Union[float, int], Union[float, int]]]] = None) -> Response:
+    def get(
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[
+            Union[float, int, Tuple[Union[float, int], Union[float, int]]]
+        ] = None,
+    ) -> Response:
         """Sends a GET request.
 
         Args:
@@ -144,7 +174,11 @@ if not _real_loaded:
             with urllib.request.urlopen(req, timeout=to, context=context) as resp:
                 status = getattr(resp, "status", 200)
                 data = resp.read()
-                hdrs = {k: v for k, v in resp.headers.items()} if getattr(resp, "headers", None) else {}
+                hdrs = (
+                    {k: v for k, v in resp.headers.items()}
+                    if getattr(resp, "headers", None)
+                    else {}
+                )
                 return Response(status, data, hdrs)
         except urllib.error.URLError as exc:
             raise RequestException(f"Network error: {exc}") from exc

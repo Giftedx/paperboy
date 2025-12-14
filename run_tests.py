@@ -39,7 +39,7 @@ def check_python_syntax(file_path):
         bool: True if syntax is valid, False otherwise.
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             ast.parse(f.read())
         return True
     except SyntaxError as e:
@@ -99,15 +99,19 @@ def test_configuration_files():
     for file_path, description in config_files:
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 if content.strip():
                     print_status(f"✓ {description} ({file_path})", "SUCCESS")
                     passed += 1
                 else:
-                    print_status(f"✗ {description} ({file_path}) - empty file", "WARNING")
+                    print_status(
+                        f"✗ {description} ({file_path}) - empty file", "WARNING"
+                    )
             except Exception as e:
-                print_status(f"✗ {description} ({file_path}) - read error: {e}", "ERROR")
+                print_status(
+                    f"✗ {description} ({file_path}) - read error: {e}", "ERROR"
+                )
         else:
             print_status(f"✗ {description} ({file_path}) - not found", "WARNING")
     print_status(
@@ -152,16 +156,19 @@ def environment_diagnostics():
     print_status("Environment diagnostics...", "INFO")
     try:
         import requests  # type: ignore
-        path = getattr(requests, '__file__', None)
-        path_str = str(path) if path else 'builtin'
+
+        path = getattr(requests, "__file__", None)
+        path_str = str(path) if path else "builtin"
         is_fallback = False
         try:
             resolved = str(Path(path_str).resolve()) if path else path_str
-            is_fallback = (Path(resolved).name == 'requests.py') and ('site-packages' not in resolved)
+            is_fallback = (Path(resolved).name == "requests.py") and (
+                "site-packages" not in resolved
+            )
             path_str = resolved
         except Exception:
             pass
-        impl = 'fallback' if is_fallback else 'real'
+        impl = "fallback" if is_fallback else "real"
         print_status(f"requests implementation: {impl} ({path_str})", "INFO")
     except Exception as e:
         print_status(f"requests import failed: {e}", "WARNING")

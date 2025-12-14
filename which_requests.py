@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 
 
@@ -28,10 +27,20 @@ def main() -> int:
     Returns:
         int: Exit code (0 for success/match, 1 for failure/mismatch).
     """
-    parser = argparse.ArgumentParser(description="Check which 'requests' implementation is active")
+    parser = argparse.ArgumentParser(
+        description="Check which 'requests' implementation is active"
+    )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--require-real", action="store_true", help="exit non-zero if fallback is active")
-    group.add_argument("--require-fallback", action="store_true", help="exit non-zero if real requests is active")
+    group.add_argument(
+        "--require-real",
+        action="store_true",
+        help="exit non-zero if fallback is active",
+    )
+    group.add_argument(
+        "--require-fallback",
+        action="store_true",
+        help="exit non-zero if real requests is active",
+    )
     args = parser.parse_args()
 
     try:
@@ -42,7 +51,9 @@ def main() -> int:
             "path": None,
             "env": {
                 "REQUESTS_FALLBACK_FORCE": os.environ.get("REQUESTS_FALLBACK_FORCE"),
-                "REQUESTS_FALLBACK_DISABLE": os.environ.get("REQUESTS_FALLBACK_DISABLE"),
+                "REQUESTS_FALLBACK_DISABLE": os.environ.get(
+                    "REQUESTS_FALLBACK_DISABLE"
+                ),
             },
             "error": str(exc),
         }

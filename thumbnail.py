@@ -12,13 +12,20 @@ logger = logging.getLogger(__name__)
 
 THUMBNAIL_WIDTH = 200
 THUMBNAIL_HEIGHT = 200
-THUMBNAIL_FORMAT = 'JPEG'
+THUMBNAIL_FORMAT = "JPEG"
 THUMBNAIL_QUALITY = 85
 
 
-def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pdf", dry_run: bool = False,
-                       width: int = THUMBNAIL_WIDTH, height: int = THUMBNAIL_HEIGHT,
-                       fmt: str = THUMBNAIL_FORMAT, quality: int = THUMBNAIL_QUALITY) -> bool:
+def generate_thumbnail(
+    input_path: str,
+    output_path: str,
+    file_format: str = "pdf",
+    dry_run: bool = False,
+    width: int = THUMBNAIL_WIDTH,
+    height: int = THUMBNAIL_HEIGHT,
+    fmt: str = THUMBNAIL_FORMAT,
+    quality: int = THUMBNAIL_QUALITY,
+) -> bool:
     """Generates a thumbnail image from the first page of a PDF file.
 
     Requires PyMuPDF (fitz) and Pillow (PIL) libraries.
@@ -37,11 +44,15 @@ def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pd
         bool: True if generation was successful, False otherwise.
     """
     if dry_run:
-        logger.info("[Dry Run] Would generate thumbnail for %s -> %s", input_path, output_path)
+        logger.info(
+            "[Dry Run] Would generate thumbnail for %s -> %s", input_path, output_path
+        )
         return True
 
     if file_format.lower() != "pdf":
-        logger.error("Unsupported file format for thumbnail: %s (PDF only)", file_format)
+        logger.error(
+            "Unsupported file format for thumbnail: %s (PDF only)", file_format
+        )
         return False
 
     if not os.path.exists(input_path):
@@ -52,12 +63,18 @@ def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pd
         try:
             import fitz  # PyMuPDF
         except Exception as exc:
-            logger.error("PyMuPDF (fitz) is required for thumbnail generation but is not installed: %s", exc)
+            logger.error(
+                "PyMuPDF (fitz) is required for thumbnail generation but is not installed: %s",
+                exc,
+            )
             return False
         try:
             from PIL import Image
         except Exception as exc:
-            logger.error("Pillow is required for thumbnail generation but is not installed: %s", exc)
+            logger.error(
+                "Pillow is required for thumbnail generation but is not installed: %s",
+                exc,
+            )
             return False
 
         doc = fitz.open(input_path)
@@ -73,10 +90,10 @@ def generate_thumbnail(input_path: str, output_path: str, file_format: str = "pd
 
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         save_params = {}
-        if fmt.upper() == 'JPEG':
-            save_params['quality'] = quality
-            if img.mode == 'RGBA':
-                img = img.convert('RGB')
+        if fmt.upper() == "JPEG":
+            save_params["quality"] = quality
+            if img.mode == "RGBA":
+                img = img.convert("RGB")
 
         img.save(output_path, fmt, **save_params)
         logger.info("Thumbnail created: %s", output_path)

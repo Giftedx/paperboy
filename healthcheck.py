@@ -14,13 +14,12 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from typing import List, Tuple
 
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.text import Text
+
     RICH_AVAILABLE = True
     console = Console()
 except ImportError:
@@ -39,9 +38,11 @@ def run_cmd(cmd: List[str], env: dict | None = None) -> Tuple[int, str]:
         Tuple[int, str]: A tuple containing the return code and the combined stdout/stderr output.
     """
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
+        )
         out, _ = proc.communicate()
-        text = out.decode('utf-8', errors='replace')
+        text = out.decode("utf-8", errors="replace")
         return proc.returncode, text
     except FileNotFoundError as exc:
         return 127, f"Command not found: {' '.join(cmd)}\n{exc}"
@@ -58,15 +59,17 @@ def main() -> int:
     steps = []
 
     # 1) run_tests.py
-    steps.append((['python3', 'run_tests.py'], None, 'Run tests'))
+    steps.append((["python3", "run_tests.py"], None, "Run tests"))
 
     # 2) which_requests.py
-    steps.append((['python3', 'which_requests.py'], None, "Check requests implementation"))
+    steps.append(
+        (["python3", "which_requests.py"], None, "Check requests implementation")
+    )
 
     # 3) Dry-run main.py
     env = os.environ.copy()
-    env['MAIN_PY_DRY_RUN'] = 'true'
-    steps.append((['python3', 'main.py'], env, 'Dry-run pipeline'))
+    env["MAIN_PY_DRY_RUN"] = "true"
+    steps.append((["python3", "main.py"], env, "Dry-run pipeline"))
 
     overall_ok = True
 
@@ -83,12 +86,12 @@ def main() -> int:
 
         if RICH_AVAILABLE:
             if code == 0:
-                console.print(f"[green]✔ PASS[/green]")
+                console.print("[green]✔ PASS[/green]")
                 # Only print output if strictly necessary or verbose?
                 # For now let's print it dim/grey
                 console.print(out, style="dim")
             else:
-                console.print(f"[red]✖ FAIL[/red]")
+                console.print("[red]✖ FAIL[/red]")
                 console.print(out, style="red")
         else:
             print(out)
@@ -100,17 +103,23 @@ def main() -> int:
 
     if overall_ok:
         if RICH_AVAILABLE:
-            console.print(Panel("[bold green]All health checks passed.[/bold green]", expand=False))
+            console.print(
+                Panel(
+                    "[bold green]All health checks passed.[/bold green]", expand=False
+                )
+            )
         else:
             print("\nAll health checks passed.")
         return 0
     else:
         if RICH_AVAILABLE:
-            console.print(Panel("[bold red]Some health checks failed.[/bold red]", expand=False))
+            console.print(
+                Panel("[bold red]Some health checks failed.[/bold red]", expand=False)
+            )
         else:
             print("\nSome health checks failed.")
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

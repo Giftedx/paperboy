@@ -1,9 +1,8 @@
-
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
 import os
 import importlib.util
+
 
 class TestRequestsFallback(unittest.TestCase):
 
@@ -14,13 +13,15 @@ class TestRequestsFallback(unittest.TestCase):
         # Load the local requests.py as a module named 'local_requests'
         # We force the fallback mode behavior by setting the env var BEFORE loading
         with patch.dict(os.environ, {"REQUESTS_FALLBACK_FORCE": "1"}):
-            spec = importlib.util.spec_from_file_location("local_requests", self.requests_py_path)
+            spec = importlib.util.spec_from_file_location(
+                "local_requests", self.requests_py_path
+            )
             self.local_requests = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(self.local_requests)
 
     def test_get_success(self):
         """Test successful GET request."""
-        with patch('urllib.request.urlopen') as mock_urlopen:
+        with patch("urllib.request.urlopen") as mock_urlopen:
             mock_response = MagicMock()
             mock_response.status = 200
             mock_response.read.return_value = b"OK"
@@ -37,16 +38,19 @@ class TestRequestsFallback(unittest.TestCase):
 
     def test_get_network_error(self):
         """Test that network errors raise RequestException."""
-        with patch('urllib.request.urlopen') as mock_urlopen:
+        with patch("urllib.request.urlopen") as mock_urlopen:
             import urllib.error
+
             mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
 
-            with self.assertRaisesRegex(self.local_requests.RequestException, "Connection refused"):
+            with self.assertRaisesRegex(
+                self.local_requests.RequestException, "Connection refused"
+            ):
                 self.local_requests.get("http://example.com")
 
     def test_get_timeout(self):
         """Test that timeouts are passed correctly."""
-        with patch('urllib.request.urlopen') as mock_urlopen:
+        with patch("urllib.request.urlopen") as mock_urlopen:
             mock_response = MagicMock()
             mock_response.status = 200
             mock_response.read.return_value = b"OK"
@@ -55,12 +59,14 @@ class TestRequestsFallback(unittest.TestCase):
             # Timeout as float
             self.local_requests.get("http://example.com", timeout=5.0)
             args, kwargs = mock_urlopen.call_args
-            self.assertEqual(kwargs['timeout'], 5.0)
+            self.assertEqual(kwargs["timeout"], 5.0)
 
             # Timeout as tuple
             self.local_requests.get("http://example.com", timeout=(3.0, 10.0))
             args, kwargs = mock_urlopen.call_args
-            self.assertEqual(kwargs['timeout'], 3.0) # Our simplified implementation takes the first element
+            self.assertEqual(
+                kwargs["timeout"], 3.0
+            )  # Our simplified implementation takes the first element
 
     def test_raise_for_status(self):
         """Test raise_for_status behavior."""
@@ -68,7 +74,7 @@ class TestRequestsFallback(unittest.TestCase):
 
         # 200 OK
         resp = Response(200, b"")
-        resp.raise_for_status() # Should not raise
+        resp.raise_for_status()  # Should not raise
 
         # 404 Not Found
         resp = Response(404, b"")
@@ -87,9 +93,10 @@ class TestRequestsFallback(unittest.TestCase):
         resp = Response(200, b'{"key": "value"}')
         self.assertEqual(resp.json(), {"key": "value"})
 
-        resp = Response(200, b'invalid json')
+        resp = Response(200, b"invalid json")
         with self.assertRaises(ValueError):
             resp.json()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

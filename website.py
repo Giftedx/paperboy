@@ -31,7 +31,9 @@ def _get_session(requests_lib):
         from urllib3.util.retry import Retry
     except ImportError:
         # Fallback implementation or partial install; cannot use advanced retry logic
-        logger.debug("Advanced requests features (HTTPAdapter, Retry) not available. Using simple requests.")
+        logger.debug(
+            "Advanced requests features (HTTPAdapter, Retry) not available. Using simple requests."
+        )
         return None
 
     session = requests_lib.Session()
@@ -41,7 +43,7 @@ def _get_session(requests_lib):
         total=5,
         backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["HEAD", "GET", "OPTIONS"]
+        allowed_methods=["HEAD", "GET", "OPTIONS"],
     )
 
     adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -54,7 +56,13 @@ def _get_session(requests_lib):
     return session
 
 
-def download_file(base_url: str, save_path: str, target_date: str | None = None, dry_run: bool = False, force_download: bool = False):
+def download_file(
+    base_url: str,
+    save_path: str,
+    target_date: str | None = None,
+    dry_run: bool = False,
+    force_download: bool = False,
+):
     """Download the newspaper for the given date.
 
     Returns:
@@ -84,21 +92,27 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
             return True, existing_pdf
 
     # Use configurable download path pattern, with a sensible default
-    download_path_pattern = config.config.get(("newspaper", "download_path_pattern"), "newspaper/download/{date}")
+    download_path_pattern = config.config.get(
+        ("newspaper", "download_path_pattern"), "newspaper/download/{date}"
+    )
     download_path = download_path_pattern.format(date=target_date_str)
     download_url = urljoin(base_url.rstrip("/") + "/", download_path)
     logger.info("Downloading from: %s", download_url)
 
     # In dry-run mode, avoid network calls and simply simulate a saved PDF path
     if dry_run:
-        logger.info("[Dry Run] Would GET %s and save to %s", download_url, abs_save_path)
+        logger.info(
+            "[Dry Run] Would GET %s and save to %s", download_url, abs_save_path
+        )
         return True, f"{abs_save_path}.pdf"
 
     # Import requests only when needed to avoid hard dependency during dry-run
     try:
         import requests  # pylint: disable=import-outside-toplevel
     except ImportError as exc:
-        logger.error("'requests' is required for live downloads but is not available: %s", exc)
+        logger.error(
+            "'requests' is required for live downloads but is not available: %s", exc
+        )
         return False, "Missing dependency: requests"
 
     try:
@@ -109,7 +123,11 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
             response = session.get(download_url, timeout=DEFAULT_TIMEOUT)
         else:
             logger.debug("Using simple requests.get (no retries).")
-            response = requests.get(download_url, headers={"User-Agent": DEFAULT_USER_AGENT}, timeout=DEFAULT_TIMEOUT)
+            response = requests.get(
+                download_url,
+                headers={"User-Agent": DEFAULT_USER_AGENT},
+                timeout=DEFAULT_TIMEOUT,
+            )
 
         response.raise_for_status()
 
@@ -135,36 +153,61 @@ def download_file(base_url: str, save_path: str, target_date: str | None = None,
 # Backwards compatibility alias
 login_and_download = download_file
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from dotenv import load_dotenv
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
     load_dotenv()
 
-    test_date_str = '2023-10-26' 
-    logger.info("--- Running website.py standalone test for date: %s ---", test_date_str)
+    test_date_str = "2023-10-26"
+    logger.info(
+        "--- Running website.py standalone test for date: %s ---", test_date_str
+    )
 
-    WEBSITE_URL_TEST = os.environ.get('WEBSITE_URL', 'https://localhost:8000') # Placeholder, replace with actual URL
-    SAVE_PATH_BASE_TEST = os.path.join(os.environ.get('DOWNLOAD_DIR', 'downloads'), f"{test_date_str}_test_download")
+    WEBSITE_URL_TEST = os.environ.get(
+        "WEBSITE_URL", "https://localhost:8000"
+    )  # Placeholder, replace with actual URL
+    SAVE_PATH_BASE_TEST = os.path.join(
+        os.environ.get("DOWNLOAD_DIR", "downloads"), f"{test_date_str}_test_download"
+    )
 
     if not WEBSITE_URL_TEST:
-        logger.error("Required environment variable (WEBSITE_URL) or config value not set for standalone test.")
+        logger.error(
+            "Required environment variable (WEBSITE_URL) or config value not set for standalone test."
+        )
     else:
-        logger.info("Initiating test download for URL: %s, Save Path Base: %s", WEBSITE_URL_TEST, SAVE_PATH_BASE_TEST)
+        logger.info(
+            "Initiating test download for URL: %s, Save Path Base: %s",
+            WEBSITE_URL_TEST,
+            SAVE_PATH_BASE_TEST,
+        )
         success, file_info = download_file(
             base_url=WEBSITE_URL_TEST,
-            save_path=SAVE_PATH_BASE_TEST, 
+            save_path=SAVE_PATH_BASE_TEST,
             target_date=test_date_str,
-            dry_run=False, 
-            force_download=True 
+            dry_run=False,
+            force_download=True,
         )
 
         if success:
             logger.info("Standalone test successful. File info/format: %s", file_info)
-            final_path = f"{SAVE_PATH_BASE_TEST}.{file_info}" if isinstance(file_info, str) and not os.path.exists(file_info) else file_info
+            final_path = (
+                f"{SAVE_PATH_BASE_TEST}.{file_info}"
+                if isinstance(file_info, str) and not os.path.exists(file_info)
+                else file_info
+            )
             if os.path.exists(final_path):
-                 logger.info("File successfully saved to: %s", final_path)
+                logger.info("File successfully saved to: %s", final_path)
             else:
-                 logger.warning("File path %s does not exist, check file_info and save_path logic.", final_path)
+                logger.warning(
+                    "File path %s does not exist, check file_info and save_path logic.",
+                    final_path,
+                )
         else:
-            logger.error("Standalone test failed. Reason: %s", file_info) # file_info contains the error message
+            logger.error(
+                "Standalone test failed. Reason: %s", file_info
+            )  # file_info contains the error message
     logger.info("--- End website.py standalone test ---")
