@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 import website
 
 
@@ -16,4 +14,4 @@ def test_login_and_download_dry_run_returns_simulated_path(tmp_path):
     )
 
     assert success is True
-    assert result == str(save_path_base.with_suffix('.pdf'))
+    assert result == str(save_path_base.with_suffix(".pdf"))

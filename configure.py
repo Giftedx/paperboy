@@ -17,13 +17,20 @@ import getpass
 
 console = Console()
 
+
 def main():
-    console.print(Panel.fit("[bold blue]Newspaper Downloader Setup Wizard[/bold blue]\n\nThis wizard will generate your [yellow]config.yaml[/yellow] and [yellow].env[/yellow] files."))
+    console.print(
+        Panel.fit(
+            "[bold blue]Newspaper Downloader Setup Wizard[/bold blue]\n\nThis wizard will generate your [yellow]config.yaml[/yellow] and [yellow].env[/yellow] files."
+        )
+    )
 
     # --- Newspaper Settings ---
     console.rule("[bold]Newspaper Settings[/bold]")
     newspaper_url = Prompt.ask("Newspaper Base URL", default="https://example.com")
-    download_pattern = Prompt.ask("Download Path Pattern", default="newspaper/download/{date}")
+    download_pattern = Prompt.ask(
+        "Download Path Pattern", default="newspaper/download/{date}"
+    )
 
     # --- Storage Settings ---
     console.rule("[bold]Cloud Storage (S3/R2)[/bold]")
@@ -49,7 +56,7 @@ def main():
         passphrase2 = getpass.getpass("Confirm master passphrase: ")
         if passphrase1 != passphrase2:
             console.print("[red]Passphrases do not match. Try again.[/red]")
-        elif passphrase1.strip() == '':
+        elif passphrase1.strip() == "":
             console.print("[red]Passphrase cannot be empty.[/red]")
         else:
             break
@@ -60,7 +67,7 @@ def main():
         length=32,
         salt=salt,
         iterations=390000,
-        backend=default_backend()
+        backend=default_backend(),
     )
     key = base64.urlsafe_b64encode(kdf.derive(passphrase1.encode()))
     fernet = Fernet(key)
@@ -70,58 +77,62 @@ def main():
     console.rule("[bold]Generating Files[/bold]")
 
     config_data = {
-        'newspaper': {
-            'url': newspaper_url,
-            'download_path_pattern': download_pattern
+        "newspaper": {"url": newspaper_url, "download_path_pattern": download_pattern},
+        "storage": {
+            "endpoint_url": storage_endpoint,
+            "bucket": storage_bucket,
         },
-        'storage': {
-            'endpoint_url': storage_endpoint,
-            'bucket': storage_bucket,
-            # Keys will be in .env, but config needs references or we rely on env vars
-            # The app reads env vars if config keys are missing, OR we can leave them out of config.yaml
-            # and let the app pick them up from env vars entirely.
-            # However, config.py looks for keys in config.yaml then env vars.
-            # To be safe, we can put placeholders or just omit them from yaml if the app supports it.
-            # Let's check config.py: it does `env_key = '_'.join(str(k).upper() for k in key_tuple)`
-            # So storage.access_key_id -> STORAGE_ACCESS_KEY_ID
+        "email": {
+            "sender": sender_email,
+            "recipients": [recipient_email],
+            "smtp_host": smtp_host,
+            "smtp_port": smtp_port,
+            "smtp_user": smtp_user,
+            "smtp_tls": 1 if smtp_tls else 0,
+            "subject_template": "🗞️ Your Daily Edition is Ready: {{ date }}",
+            "template": "email_template.html",
+            "alert_recipient": sender_email,
         },
-        'email': {
-            'sender': sender_email,
-            'recipients': [recipient_email],
-            'smtp_host': smtp_host,
-            'smtp_port': smtp_port,
-            'smtp_user': smtp_user,
-            'smtp_tls': 1 if smtp_tls else 0,
-            'subject_template': "🗞️ Your Daily Edition is Ready: {{ date }}", # Improved subject
-            'template': "email_template.html",
-            'alert_recipient': sender_email
+        "general": {
+            "retention_days": 7,
+            "date_format": "%Y-%m-%d",
+            "filename_template": "{date}_newspaper.{format}",
+            "thumbnail_filename_template": "{date}_thumbnail.{format}",
+            "retention_days_for_email_links": 7,
         },
-        'general': {
-            'retention_days': 7,
-            'date_format': "%Y-%m-%d",
-            'filename_template': "{date}_newspaper.{format}",
-            'thumbnail_filename_template': "{date}_thumbnail.{format}",
-            'retention_days_for_email_links': 7
+        "paths": {
+            "download_dir": "downloads",
+            "template_dir": "templates",
+            "log_file": "newspaper_emailer.log",
+            "status_file": "pipeline_status.json",
         },
-        'paths': {
-            'download_dir': "downloads",
-            'template_dir': "templates",
-            'log_file': "newspaper_emailer.log",
-            'status_file': "pipeline_status.json"
-        }
     }
 
-    # Write config.yaml
-    if os.path.exists('config.yaml'):
+    save_config_yaml(config_data)
+
+    save_env_file(access_key, encrypted_secret_key, encrypted_smtp_pass, salt_b64)
+
+    console.print(
+        Panel.fit(
+            "[bold green]Setup Complete![/bold green]\n\nRun [bold white]python main.py[/bold white] to test."
+        )
+    )
+
+
+def save_config_yaml(config_data):
+    """Saves the configuration to config.yaml."""
+    if os.path.exists("config.yaml"):
         if not Confirm.ask("[yellow]config.yaml[/yellow] already exists. Overwrite?"):
             console.print("[red]Aborted.[/red]")
             return
 
-    with open('config.yaml', 'w') as f:
+    with open("config.yaml", "w") as f:
         yaml.dump(config_data, f, default_flow_style=False)
     console.print("[green]✔ config.yaml created.[/green]")
 
-    # Write .env
+
+def save_env_file(access_key, encrypted_secret_key, encrypted_smtp_pass, salt_b64):
+    """Saves the encrypted secrets to .env."""
     env_content = f"""# Auto-generated .env file
 # The following secrets are encrypted with Fernet (AES-GCM, passphrase-based)
 STORAGE_ACCESS_KEY_ID="{access_key}"
@@ -130,19 +141,20 @@ EMAIL_SMTP_PASS_ENC="{encrypted_smtp_pass}"
 SECRETS_ENC_SALT="{salt_b64}"
 # To decrypt, prompt user for the master passphrase gathered during config.
 """
-    if os.path.exists('.env'):
+    if os.path.exists(".env"):
         if not Confirm.ask("[yellow].env[/yellow] already exists. Overwrite?"):
-             console.print("[yellow]Skipping .env creation (secrets not saved).[/yellow]")
+            console.print(
+                "[yellow]Skipping .env creation (secrets not saved).[/yellow]"
+            )
         else:
-            with open('.env', 'w') as f:
+            with open(".env", "w") as f:
                 f.write(env_content)
             console.print("[green]✔ .env created.[/green]")
     else:
-        with open('.env', 'w') as f:
+        with open(".env", "w") as f:
             f.write(env_content)
         console.print("[green]✔ .env created.[/green]")
 
-    console.print(Panel.fit("[bold green]Setup Complete![/bold green]\n\nRun [bold white]python main.py[/bold white] to test."))
 
 if __name__ == "__main__":
     try:

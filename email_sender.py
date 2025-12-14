@@ -27,10 +27,10 @@ def _get_jinja_env():
         from jinja2 import Environment, FileSystemLoader, select_autoescape  # type: ignore
     except Exception:
         return None
-    template_dir = config.config.get(('paths', 'template_dir'), 'templates')
+    template_dir = config.config.get(("paths", "template_dir"), "templates")
     return Environment(
         loader=FileSystemLoader(template_dir),
-        autoescape=select_autoescape(['html', 'xml'])
+        autoescape=select_autoescape(["html", "xml"]),
     )
 
 
@@ -44,10 +44,18 @@ def _is_valid_email(addr: str) -> bool:
         bool: True if the address matches the basic pattern.
     """
     import re
+
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr))
 
 
-def _render_email_content(target_date, today_paper_url, past_papers, subject_template, template_name, has_thumbnail=False):
+def _render_email_content(
+    target_date,
+    today_paper_url,
+    past_papers,
+    subject_template,
+    template_name,
+    has_thumbnail=False,
+):
     """Renders the email subject and body.
 
     Uses Jinja2 if available, otherwise falls back to a simple HTML string.
@@ -64,12 +72,14 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
         tuple: (subject (str), html_body (str))
     """
     env = _get_jinja_env()
-    date_str = target_date.strftime('%Y-%m-%d')
+    date_str = target_date.strftime("%Y-%m-%d")
     recipient_name = None
     # subject
     if env is not None:
         try:
-            subject = env.from_string(subject_template).render(date=date_str, recipient=recipient_name)
+            subject = env.from_string(subject_template).render(
+                date=date_str, recipient=recipient_name
+            )
         except Exception:
             subject = f"Your Daily Newspaper - {date_str}"
         try:
@@ -77,19 +87,21 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
             # Ensure archive summary is friendly even if 0
             archive_count = len(past_papers)
             if archive_count > 0:
-                summary = f"You have access to the last {archive_count} days of newspapers."
+                summary = (
+                    f"You have access to the last {archive_count} days of newspapers."
+                )
             else:
                 summary = "Archive is building up..."
 
             render_context = {
-                'date': date_str,
-                'today_paper_url': today_paper_url,
-                'past_papers': past_papers,
-                'recipient': recipient_name,
-                'archive_summary': summary
+                "date": date_str,
+                "today_paper_url": today_paper_url,
+                "past_papers": past_papers,
+                "recipient": recipient_name,
+                "archive_summary": summary,
             }
             if has_thumbnail:
-                render_context['thumbnail_cid'] = "thumbnail"
+                render_context["thumbnail_cid"] = "thumbnail"
 
             html_body = template.render(**render_context)
             return subject, html_body
@@ -97,7 +109,7 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
             pass
     # Fallback simple HTML
     subject = f"Your Daily Newspaper - {date_str}"
-    links_html = ''.join(f"<li><a href='{url}'>{d}</a></li>" for d, url in past_papers)
+    links_html = "".join(f"<li><a href='{url}'>{d}</a></li>" for d, url in past_papers)
     html_body = f"""
     <html>
       <body>
@@ -111,7 +123,9 @@ def _render_email_content(target_date, today_paper_url, past_papers, subject_tem
     return subject, html_body
 
 
-def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, dry_run=False):
+def send_email(
+    target_date, today_paper_url, past_papers, thumbnail_path=None, dry_run=False
+):
     """Prepares and sends the daily newspaper email.
 
     Args:
@@ -124,10 +138,12 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
     Returns:
         bool: True if sent (or simulated) successfully, False otherwise.
     """
-    sender = config.config.get(('email', 'sender'))
-    recipients = config.config.get(('email', 'recipients'), [])
-    subject_template = config.config.get(('email', 'subject_template'), 'Your Daily Newspaper - {{ date }}')
-    template_name = config.config.get(('email', 'template'), 'email_template.html')
+    sender = config.config.get(("email", "sender"))
+    recipients = config.config.get(("email", "recipients"), [])
+    subject_template = config.config.get(
+        ("email", "subject_template"), "Your Daily Newspaper - {{ date }}"
+    )
+    template_name = config.config.get(("email", "template"), "email_template.html")
 
     valid_recipients = [r for r in recipients if _is_valid_email(r)]
     if not valid_recipients:
@@ -140,15 +156,18 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
 
     if thumbnail_path and not dry_run:
         if os.path.isfile(thumbnail_path):
-            with open(thumbnail_path, 'rb') as f:
+            with open(thumbnail_path, "rb") as f:
                 thumbnail_data = f.read()
                 has_thumbnail = True
-        elif thumbnail_path.startswith(('http://', 'https://')):
+        elif thumbnail_path.startswith(("http://", "https://")):
             try:
                 try:
                     import requests  # pylint: disable=import-outside-toplevel
                 except Exception:
-                    logger.warning("requests not available; skipping thumbnail download from URL: %s", thumbnail_path)
+                    logger.warning(
+                        "requests not available; skipping thumbnail download from URL: %s",
+                        thumbnail_path,
+                    )
                     requests = None  # type: ignore
                 if requests:
                     response = requests.get(thumbnail_path, timeout=30)
@@ -157,28 +176,41 @@ def send_email(target_date, today_paper_url, past_papers, thumbnail_path=None, d
                     has_thumbnail = True
                     logger.info("Downloaded thumbnail from URL: %s", thumbnail_path)
             except Exception as e:
-                logger.warning("Failed to download thumbnail from URL %s: %s", thumbnail_path, e)
+                logger.warning(
+                    "Failed to download thumbnail from URL %s: %s", thumbnail_path, e
+                )
         else:
-            logger.warning("Invalid thumbnail_path: %s (not a file or URL)", thumbnail_path)
+            logger.warning(
+                "Invalid thumbnail_path: %s (not a file or URL)", thumbnail_path
+            )
     elif thumbnail_path and dry_run:
         # In dry run, we simulate having it if path is provided
         has_thumbnail = True
 
     subject, html_body = _render_email_content(
-        target_date, today_paper_url, past_papers, subject_template, template_name, has_thumbnail=has_thumbnail
+        target_date,
+        today_paper_url,
+        past_papers,
+        subject_template,
+        template_name,
+        has_thumbnail=has_thumbnail,
     )
 
     # In dry_run mode, do not perform any network or file I/O for thumbnail fetching
     if dry_run:
         logger.info("[Dry Run] Would send email to: %s", valid_recipients)
         logger.info("Subject: %s", subject)
-        logger.info("Body: %s", html_body[:200] + '...')
+        logger.info("Body: %s", html_body[:200] + "...")
         if thumbnail_path:
-            logger.info("[Dry Run] Would attach thumbnail reference: %s", thumbnail_path)
+            logger.info(
+                "[Dry Run] Would attach thumbnail reference: %s", thumbnail_path
+            )
         return True
 
     try:
-        return _send_via_smtp(sender, valid_recipients, subject, html_body, thumbnail_data)
+        return _send_via_smtp(
+            sender, valid_recipients, subject, html_body, thumbnail_data
+        )
     except Exception as e:
         logger.error("Error sending email: %s", e)
         return False
@@ -200,22 +232,22 @@ def _send_via_smtp(sender, recipients, subject, html_body, thumbnail_data):
     Raises:
         Exception: On SMTP failure.
     """
-    smtp_host = config.config.get(('email', 'smtp_host'))
-    smtp_port = int(config.config.get(('email', 'smtp_port'), 587))
-    smtp_user = config.config.get(('email', 'smtp_user'))
-    smtp_pass = config.config.get(('email', 'smtp_pass'))
-    use_tls = bool(int(config.config.get(('email', 'smtp_tls'), 1)))
+    smtp_host = config.config.get(("email", "smtp_host"))
+    smtp_port = int(config.config.get(("email", "smtp_port"), 587))
+    smtp_user = config.config.get(("email", "smtp_user"))
+    smtp_pass = config.config.get(("email", "smtp_pass"))
+    use_tls = bool(int(config.config.get(("email", "smtp_tls"), 1)))
 
-    msg = MIMEMultipart('related')
-    msg['Subject'] = subject
-    msg['From'] = formataddr(('Newspaper', sender))
-    msg['To'] = ', '.join(recipients)
+    msg = MIMEMultipart("related")
+    msg["Subject"] = subject
+    msg["From"] = formataddr(("Newspaper", sender))
+    msg["To"] = ", ".join(recipients)
 
-    msg.attach(MIMEText(html_body, 'html'))
+    msg.attach(MIMEText(html_body, "html"))
 
     if thumbnail_data:
         image = MIMEImage(thumbnail_data)
-        image.add_header('Content-ID', '<thumbnail>')
+        image.add_header("Content-ID", "<thumbnail>")
         msg.attach(image)
 
     try:
@@ -243,8 +275,8 @@ def send_alert_email(subject, message, dry_run=False):
     Returns:
         bool: True if sent successfully, False otherwise.
     """
-    sender = config.config.get(('email', 'sender'))
-    alert_recipient = config.config.get(('email', 'alert_recipient'), sender)
+    sender = config.config.get(("email", "sender"))
+    alert_recipient = config.config.get(("email", "alert_recipient"), sender)
     if not _is_valid_email(alert_recipient):
         logger.error("Invalid alert recipient: %s", alert_recipient)
         return False
@@ -254,15 +286,15 @@ def send_alert_email(subject, message, dry_run=False):
         return True
 
     try:
-        smtp_host = config.config.get(('email', 'smtp_host'))
-        smtp_port = int(config.config.get(('email', 'smtp_port'), 587))
-        smtp_user = config.config.get(('email', 'smtp_user'))
-        smtp_pass = config.config.get(('email', 'smtp_pass'))
-        use_tls = bool(int(config.config.get(('email', 'smtp_tls'), 1)))
-        msg = MIMEText(message, 'plain')
-        msg['Subject'] = subject
-        msg['From'] = sender
-        msg['To'] = alert_recipient
+        smtp_host = config.config.get(("email", "smtp_host"))
+        smtp_port = int(config.config.get(("email", "smtp_port"), 587))
+        smtp_user = config.config.get(("email", "smtp_user"))
+        smtp_pass = config.config.get(("email", "smtp_pass"))
+        use_tls = bool(int(config.config.get(("email", "smtp_tls"), 1)))
+        msg = MIMEText(message, "plain")
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = alert_recipient
         with smtplib.SMTP(smtp_host, smtp_port) as server:
             if use_tls:
                 server.starttls()

@@ -50,3 +50,13 @@ py-modules = [
 
 [tool.setuptools.package-data]
 "" = ["*.yaml", "*.md"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3

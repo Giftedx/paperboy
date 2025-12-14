@@ -1,0 +1,19 @@
+[MASTER]
+ignore=CVS,.git,.venv,.env
+extension-pkg-allow-list=pydantic
+
+[MESSAGES CONTROL]
+disable=
+    C0111, # missing-docstring (we use google style, but sometimes it's noisy)
+    C0103, # invalid-name (some legacy names exist)
+    C0301, # line-too-long (handled by black)
+    R0903, # too-few-public-methods
+    W0703, # broad-except (sometimes needed)
+    W0511, # fixme (we have TODOs)
+
+[FORMAT]
+max-line-length=88
+
+[DESIGN]
+max-args=7
+max-attributes=10

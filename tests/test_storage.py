@@ -1,17 +1,16 @@
-
 import unittest
 import os
 import shutil
 import tempfile
 import sys
 from unittest.mock import MagicMock, patch
-import logging
 
 # Ensure the module is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import storage
-import config
+import storage  # noqa: E402
+import config  # noqa: F401, E402
+
 
 class TestStorageLocal(unittest.TestCase):
     def setUp(self):
@@ -21,16 +20,16 @@ class TestStorageLocal(unittest.TestCase):
         os.makedirs(self.local_storage_path, exist_ok=True)
 
         # Patch config to use local storage
-        self.config_patcher = patch('storage.config.config.get')
+        self.config_patcher = patch("storage.config.config.get")
         self.mock_config_get = self.config_patcher.start()
 
         def config_side_effect(key, default=None):
-            if key == ('storage', 'type'):
-                return 'local'
-            if key == ('storage', 'local_path'):
+            if key == ("storage", "type"):
+                return "local"
+            if key == ("storage", "local_path"):
                 return self.local_storage_path
-            if key == ('storage', 'public_base_url'):
-                return 'http://localhost:8000/files'
+            if key == ("storage", "public_base_url"):
+                return "http://localhost:8000/files"
             return default
 
         self.mock_config_get.side_effect = config_side_effect
@@ -47,7 +46,9 @@ class TestStorageLocal(unittest.TestCase):
 
         success = storage.upload_to_storage(src_file, "uploaded.txt")
         self.assertTrue(success)
-        self.assertTrue(os.path.exists(os.path.join(self.local_storage_path, "uploaded.txt")))
+        self.assertTrue(
+            os.path.exists(os.path.join(self.local_storage_path, "uploaded.txt"))
+        )
 
     def test_upload_local_dry_run(self):
         src_file = os.path.join(self.test_dir, "test_dry.txt")
@@ -56,12 +57,16 @@ class TestStorageLocal(unittest.TestCase):
 
         success = storage.upload_to_storage(src_file, "dry_uploaded.txt", dry_run=True)
         self.assertTrue(success)
-        self.assertFalse(os.path.exists(os.path.join(self.local_storage_path, "dry_uploaded.txt")))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.local_storage_path, "dry_uploaded.txt"))
+        )
 
     def test_list_files_local(self):
         # Create some files
-        with open(os.path.join(self.local_storage_path, "file1.txt"), "w") as f: f.write("1")
-        with open(os.path.join(self.local_storage_path, "file2.txt"), "w") as f: f.write("2")
+        with open(os.path.join(self.local_storage_path, "file1.txt"), "w") as f:
+            f.write("1")
+        with open(os.path.join(self.local_storage_path, "file2.txt"), "w") as f:
+            f.write("2")
 
         files = storage.list_storage_files()
         self.assertIn("file1.txt", files)
@@ -70,7 +75,8 @@ class TestStorageLocal(unittest.TestCase):
 
     def test_delete_local(self):
         target = os.path.join(self.local_storage_path, "to_delete.txt")
-        with open(target, "w") as f: f.write("bye")
+        with open(target, "w") as f:
+            f.write("bye")
 
         success = storage.delete_from_storage("to_delete.txt")
         self.assertTrue(success)
@@ -82,7 +88,8 @@ class TestStorageLocal(unittest.TestCase):
 
     def test_download_local(self):
         target = os.path.join(self.local_storage_path, "download_me.txt")
-        with open(target, "w") as f: f.write("download content")
+        with open(target, "w") as f:
+            f.write("download content")
 
         local_path = storage.download_to_temp("download_me.txt")
         self.assertTrue(os.path.exists(local_path))
@@ -92,18 +99,19 @@ class TestStorageLocal(unittest.TestCase):
 
 class TestStorageS3(unittest.TestCase):
     def setUp(self):
-        self.config_patcher = patch('storage.config.config.get')
+        self.config_patcher = patch("storage.config.config.get")
         self.mock_config_get = self.config_patcher.start()
 
         def config_side_effect(key, default=None):
-            if key == ('storage', 'type'):
-                return 's3'
-            if key == ('storage', 'bucket'):
-                return 'my-bucket'
+            if key == ("storage", "type"):
+                return "s3"
+            if key == ("storage", "bucket"):
+                return "my-bucket"
             return default
+
         self.mock_config_get.side_effect = config_side_effect
 
-        self.boto3_patcher = patch('storage.boto3')
+        self.boto3_patcher = patch("storage.boto3")
         self.mock_boto3 = self.boto3_patcher.start()
         self.mock_s3_client = MagicMock()
         self.mock_boto3.client.return_value = self.mock_s3_client
@@ -126,7 +134,9 @@ class TestStorageS3(unittest.TestCase):
         try:
             success = storage.upload_to_storage(tmp_name, "remote_key")
             self.assertTrue(success)
-            self.mock_s3_client.upload_file.assert_called_with(tmp_name, 'my-bucket', 'remote_key')
+            self.mock_s3_client.upload_file.assert_called_with(
+                tmp_name, "my-bucket", "remote_key"
+            )
         finally:
             os.remove(tmp_name)
 
@@ -144,15 +154,17 @@ class TestStorageS3(unittest.TestCase):
 
     def test_list_files_s3(self):
         self.mock_s3_client.list_objects_v2.return_value = {
-            'Contents': [{'Key': 'fileA'}, {'Key': 'fileB'}]
+            "Contents": [{"Key": "fileA"}, {"Key": "fileB"}]
         }
         files = storage.list_storage_files()
-        self.assertEqual(files, ['fileA', 'fileB'])
+        self.assertEqual(files, ["fileA", "fileB"])
 
     def test_delete_s3(self):
         success = storage.delete_from_storage("fileX")
         self.assertTrue(success)
-        self.mock_s3_client.delete_object.assert_called_with(Bucket='my-bucket', Key='fileX')
+        self.mock_s3_client.delete_object.assert_called_with(
+            Bucket="my-bucket", Key="fileX"
+        )
 
     def test_get_url_s3(self):
         self.mock_s3_client.generate_presigned_url.return_value = "http://s3/url"
@@ -166,5 +178,5 @@ class TestStorageS3(unittest.TestCase):
         self.mock_s3_client.download_file.assert_called()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
