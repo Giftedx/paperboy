@@ -18,6 +18,17 @@ except Exception:  # ImportError or others
         """Dummy load_dotenv implementation if python-dotenv is not installed."""
         return False
 import sys
+import base64
+
+# Crypto imports for decryption
+try:
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.fernet import Fernet
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +112,51 @@ class Config:
         self._loaded = False
         self._env_file_loaded = False # Tracks if a .env file was processed
         self.CRITICAL_CONFIG_MAP = {key_path: rule for key_path, rule in CRITICAL_CONFIG_KEYS}
+        self._fernet = None # Cached Fernet instance
+
+    def _get_fernet(self):
+        """Initializes the Fernet cipher using the runtime passphrase and stored salt."""
+        if self._fernet:
+            return self._fernet
+
+        if not CRYPTO_AVAILABLE:
+            logger.warning("Cryptography libraries not installed. Decryption unavailable.")
+            return None
+
+        passphrase = os.environ.get('SECRETS_PASSPHRASE')
+        salt_b64 = os.environ.get('SECRETS_ENC_SALT')
+
+        if not passphrase or not salt_b64:
+            # Only warn if we actually encounter an encrypted value that needs this
+            return None
+
+        try:
+            salt = base64.urlsafe_b64decode(salt_b64)
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=390000,
+                backend=default_backend()
+            )
+            key = base64.urlsafe_b64encode(kdf.derive(passphrase.encode()))
+            self._fernet = Fernet(key)
+            return self._fernet
+        except Exception as e:
+            logger.error(f"Failed to initialize encryption key: {e}")
+            return None
+
+    def _decrypt_value(self, encrypted_value):
+        """Decrypts a value using the initialized Fernet cipher."""
+        fernet = self._get_fernet()
+        if not fernet:
+            logger.error("Cannot decrypt value: Missing SECRETS_PASSPHRASE or SECRETS_ENC_SALT.")
+            return None
+        try:
+            return fernet.decrypt(encrypted_value.encode()).decode()
+        except Exception as e:
+            logger.error(f"Decryption failed: {e}")
+            return None
 
     def _is_secret(self, key_name_parts):
         """Checks if any part of a multi-level key name suggests a secret value.
@@ -324,6 +380,14 @@ class Config:
             env_key = '_'.join(str(k).upper() for k in key_tuple)
             env_value = os.environ.get(env_key)
             
+            # Check for encrypted variant if plain value is missing
+            if env_value is None:
+                env_key_enc = env_key + "_ENC"
+                env_value_enc = os.environ.get(env_key_enc)
+                if env_value_enc:
+                    logger.debug(f"Found encrypted variable {env_key_enc}, attempting decryption.")
+                    env_value = self._decrypt_value(env_value_enc)
+
             if env_value is not None:
                 # Attempt to cast common types from environment variables
                 # This is a simple heuristic; more complex type casting might be needed
