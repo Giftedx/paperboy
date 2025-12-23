@@ -2,88 +2,115 @@
 
 A robust, automated pipeline designed to download your daily newspaper, process it, and email it to you. This solution is built for reliability and portability, capable of running in various environments (local, cloud, CI/CD) with minimal dependencies.
 
+## Project Goals
+
+**Primary Goal:** To provide a reliable, "set-and-forget" tool for self-hosters to automate the daily retrieval, archival, and delivery of digital newspaper editions (PDFs).
+
+**Target Users:** Home lab enthusiasts, digital archivists, and subscribers who prefer offline or email-based reading workflows.
+
+**Key Features:**
+*   **Automated Delivery:** Fetches the daily edition, generates a visual thumbnail, and emails it to your inbox.
+*   **Flexible Storage:** Supports stateless cloud storage (S3, Cloudflare R2) or persistent local storage.
+*   **Security First:** Includes an interactive wizard (`configure.py`) that encrypts sensitive credentials (SMTP passwords, API keys) at rest.
+*   **Resilience:** Features robust error handling, retries, and a fallback HTTP client for restricted network environments.
+*   **Observability:** Integrated health checks and rich CLI status reporting.
+
+**Non-Goals:**
+*   This is not a general-purpose web scraper. It is designed for specific, predictable URL patterns.
+*   It does not bypass paywalls; users must provide valid URLs or authentication for their content.
+
 ## Architecture
 
 The system operates as a linear pipeline orchestrated by `main.py`.
 
 1.  **Configuration**: Centralized settings management (`config.py`) loads parameters from `config.yaml` and environment variables (`.env`).
 2.  **Download**: The `website` module authenticates (if necessary) and downloads the newspaper edition for the target date.
-3.  **Storage**: The `storage` module handles interactions with S3-compatible cloud storage (e.g., AWS S3, Cloudflare R2).
+3.  **Storage**: The `storage` module handles interactions with S3-compatible cloud storage or the local filesystem.
 4.  **Processing**: The `thumbnail` module generates a preview image of the newspaper's front page (PDF only).
 5.  **Notification**: The `email_sender` module constructs an HTML email with download links and the inline thumbnail, sending it via SMTP.
 6.  **Cleanup**: Old files are automatically purged from storage based on retention policy.
 
-## Features
-
--   **Daily Automation**: targets specific dates or defaults to "today".
--   **Resilient Downloading**: Includes a robust fallback for the `requests` library to ensure functionality in restricted environments.
--   **Cloud Storage**: Stateless design using S3-compatible storage for archives.
--   **Rich Emails**: HTML templates with Jinja2 support and inline visual previews.
--   **Health Checks**: Integrated diagnostics to verify environment integrity.
-
-## Setup
+## Installation
 
 ### Prerequisites
 
--   Python 3.8+
--   SMTP credentials (for sending emails)
--   S3-compatible storage credentials (AWS, R2, MinIO, etc.)
+*   **Python 3.8+**
+*   **SMTP Credentials**: Access to an SMTP server (e.g., Gmail, SendGrid, or self-hosted) for sending emails.
+*   **(Optional) S3 Credentials**: Access Key ID and Secret Key for S3-compatible storage (AWS S3, Cloudflare R2, MinIO). *Local storage is also supported.*
 
-### Installation
+### Setup Steps
 
-1.  Clone the repository.
-2.  Create a virtual environment:
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourusername/newspaper-emailer.git
+    cd newspaper-emailer
+    ```
+
+2.  **Create and activate a virtual environment:**
     ```bash
     python3 -m venv .venv
-    source .venv/bin/activate  # Linux/Mac
-    # or .venv\Scripts\activate  # Windows
+    source .venv/bin/activate  # Linux/macOS
+    # .venv\Scripts\activate   # Windows
     ```
-3.  Install dependencies:
+
+3.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-    *Note: If running in a restricted environment, the system can operate with reduced functionality using built-in fallbacks.*
 
 ### Configuration
 
-✨ **New! Interactive Setup Wizard**
+You can configure the application using the interactive wizard (recommended) or manually.
 
-We provide an interactive wizard to help you generate your configuration files easily.
-
+**Option A: Interactive Wizard (Recommended)**
+Run the setup script to generate `config.yaml` and a secure `.env` file with encrypted credentials.
 ```bash
 python configure.py
 ```
 
-Alternatively, you can manually configure the system:
+**Option B: Manual Configuration**
+1.  **`config.yaml`**: Copy `config.yaml` to configure defaults.
+    ```yaml
+    newspaper:
+      url: "https://example.com"
+      download_path_pattern: "newspaper/download/{date}"
 
-Configuration is hierarchical: **YAML** < **Environment Variables**.
+    storage:
+      endpoint_url: "https://<account>.r2.cloudflarestorage.com"
+      bucket: "newspaper-archive"
 
-1.  **`config.yaml`**: Copy `config.yaml` (if not present) and set your defaults.
-2.  **`.env`**: Create a `.env` file for secrets. This file is excluded from version control.
+    email:
+      sender: "bot@example.com"
+      recipients: ["user@example.com"]
+      smtp_host: "smtp.example.com"
+    ```
 
-**Required Secrets (.env example):**
-```env
-NEWSPAPER_URL="https://example.com"
-STORAGE_ACCESS_KEY_ID="your_key_id"
-STORAGE_SECRET_ACCESS_KEY="your_secret_key"
-EMAIL_SMTP_PASS="your_smtp_password"
-```
+2.  **`.env`**: Copy `.env.example` to `.env` and fill in your secrets.
+    ```bash
+    cp .env.example .env
+    nano .env
+    ```
+    *Note: The system supports both plain text and encrypted credentials (using `_ENC` suffix) in `.env`.*
 
-**Key Configuration Options (`config.yaml`):**
-```yaml
-newspaper:
-  url: "https://example.com"
-  download_path_pattern: "newspaper/download/{date}"
+**Key Environment Variables (.env):**
+*   `NEWSPAPER_URL`: Base URL for the publication.
+*   `STORAGE_TYPE`: `s3` (default) or `local`.
+*   `EMAIL_SMTP_HOST` / `EMAIL_SMTP_PASS`: SMTP server details.
 
-storage:
-  endpoint_url: "https://<account>.r2.cloudflarestorage.com"
-  bucket: "newspaper-archive"
+### Verification
 
-email:
-  sender: "bot@example.com"
-  recipients: ["user@example.com"]
-  smtp_host: "smtp.example.com"
-```
+1.  **Run Health Check:**
+    Verify your environment, dependencies, and configuration validity.
+    ```bash
+    python healthcheck.py
+    ```
+
+2.  **Manual Dry-Run:**
+    Simulate a run without downloading or sending emails.
+    ```bash
+    export MAIN_PY_DRY_RUN=true
+    python main.py
+    ```
 
 ## Usage
 
@@ -91,12 +118,6 @@ email:
 
 To run the pipeline for today's date:
 ```bash
-python main.py
-```
-
-To run a dry-run (simulates actions without network/storage side-effects):
-```bash
-export MAIN_PY_DRY_RUN=true
 python main.py
 ```
 
@@ -108,16 +129,17 @@ python main.py
 
 ### Automation
 
-Schedule `main.py` using cron or a Task Scheduler.
-Example cron (daily at 6:00 AM):
+Schedule `main.py` using `cron` (Linux) or Task Scheduler (Windows).
+
+**Example Cron Job (Daily at 6:00 AM):**
 ```cron
-0 6 * * * /path/to/.venv/bin/python /path/to/repo/main.py
+0 6 * * * /path/to/repo/.venv/bin/python /path/to/repo/main.py >> /path/to/repo/logs/cron.log 2>&1
 ```
 
 ## Development
 
 -   **Running Tests**: `python run_tests.py` performs static analysis and structure checks.
--   **Health Check**: `python healthcheck.py` runs a full diagnostic suite including a dry-run of the pipeline.
+-   **Health Check**: `python healthcheck.py` runs a full diagnostic suite.
 -   **Docstrings**: All code is documented using Google Style Python Docstrings.
 
 ## License
